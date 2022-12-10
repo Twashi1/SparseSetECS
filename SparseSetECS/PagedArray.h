@@ -1,0 +1,102 @@
+#pragma once
+
+#include "Core.h"
+
+namespace ECS {
+	// Shamelessly stolen from entt
+	/*
+	inline constexpr ECS_SIZE_TYPE NextPowerOf2(const ECS_SIZE_TYPE value) noexcept {
+		if (value == std::numeric_limits<ECS_SIZE_TYPE>::max()) return value;
+
+		ECS_SIZE_TYPE current =  value - (value != 0u);
+
+		for (ECS_SIZE_TYPE i = 1; i < std::numeric_limits<ECS_SIZE_TYPE>::digits; i = i * 2) {
+			current |= current >> i;
+		}
+
+		return ++current;
+	}
+
+	inline ECS_SIZE_TYPE FastLog2OfPower2(ECS_SIZE_TYPE x) noexcept {
+		return sizeof(ECS_SIZE_TYPE) * CHAR_BIT - _lzcnt_u32(x) - 1;
+	}
+	*/
+
+	template <typename T, ECS_SIZE_TYPE _page_size, ECS_SIZE_TYPE _capacity, T _default = 0>
+	struct PagedArray {
+	private:
+		static const ECS_SIZE_TYPE m_PageSize = _page_size;
+		static const ECS_SIZE_TYPE m_Pages	  = ((_capacity - 1) / m_PageSize + 1);
+		static const ECS_SIZE_TYPE m_Capacity = m_Pages * m_PageSize;
+		static const T			   m_Default  = _default;
+
+	public:
+		using value_type = T;
+		using page_type = value_type*;
+		using book_type = std::array<page_type, m_Pages>;
+		
+	private:
+		book_type m_Book;		// A collection of pages is a book?
+
+		inline page_type& m_AllocateOrGetPage(const ECS_SIZE_TYPE& page_index) {
+			page_type& page = m_Book[page_index];
+
+			// If page not allocated
+			if (page == nullptr) {
+				// Allocate
+				page = new T[m_PageSize];
+
+				// Fill with default
+				std::memset(page, m_Default, sizeof(T) * m_PageSize);
+
+				// Return
+				return page;
+			}
+			// Otherwise just return page
+			else {
+				return page;
+			}
+		}
+
+		inline T& m_Index(const ECS_SIZE_TYPE& index) {
+			// Calculate the page that index is stored in
+			ECS_SIZE_TYPE page_index = index / m_PageSize;
+			// Calculate index within the page for the given index
+			ECS_SIZE_TYPE index_in_page = index - (page_index * m_PageSize);
+
+			// Get the relevant page
+			page_type& page = m_AllocateOrGetPage(page_index);
+
+			// Return element at that index in the page
+			return page[index_in_page];
+		}
+
+	public:
+		static const ECS_SIZE_TYPE GetCapacity()  { return m_Capacity; }
+		static const ECS_SIZE_TYPE GetPageCount() { return m_Pages; }
+
+		PagedArray() { std::fill(m_Book.begin(), m_Book.end(), nullptr); }
+		PagedArray(const PagedArray& other) = delete;
+		PagedArray(PagedArray&& other) noexcept
+			: m_Book(std::move(other.m_Book))
+		{
+			// Set everything in other array to nulls
+			for (page_type& page : other.m_Book) {
+				page = nullptr;
+			}
+		}
+
+		PagedArray& operator=(const PagedArray& other) = delete;
+		PagedArray& operator=(PagedArray&& other) noexcept {
+			m_Book = std::move(other.m_Book);
+
+			// Set everything in other array to nulls
+			for (page_type& page : other.m_Book) {
+				page = nullptr;
+			}
+		}
+
+		T& operator[](const ECS_SIZE_TYPE& index)				{ return m_Index(index); }
+		const T& operator[](const ECS_SIZE_TYPE& index) const	{ return m_Index(index); }
+	};
+}
