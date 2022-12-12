@@ -8,7 +8,7 @@ namespace ECS {
 	typedef ECS_ID_TYPE Version_t;
 
 	inline Identifier_t GetVersion(const Entity& entity) {
-		return entity & ECS_VERSION_BITMASK;
+		return entity & ECS_VERSION_BITMASK >> ECS_VERSION_SHIFT_ALIGN;
 	}
 
 	inline Version_t GetIdentifier(const Entity& entity) {

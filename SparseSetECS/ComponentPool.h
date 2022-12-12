@@ -6,6 +6,11 @@
 #include "Family.h"
 
 namespace ECS {
+	template <typename... Ts>
+	class View;
+	template <typename T>
+	class SingleView;
+
 	class ComponentAllocatorBase {
 	public:
 		virtual ~ComponentAllocatorBase() = default;
@@ -17,6 +22,7 @@ namespace ECS {
 		virtual void Swap(std::byte* a, std::byte* b) const = 0;
 
 		virtual std::size_t SizeInBytes() const = 0;
+		virtual ECS_SIZE_TYPE GetComponentID() const = 0;
 	};
 
 	template <typename T>
@@ -73,7 +79,7 @@ namespace ECS {
 				// Iterate each member
 				for (ECS_SIZE_TYPE i = 0; i < count; i++) {
 					// Delete member
-					Delet(data + i * sizeof(T));
+					Delete(data + i * sizeof(T));
 				}
 			}
 		}
@@ -91,7 +97,14 @@ namespace ECS {
 			return sizeof(T);
 		}
 
+		ECS_SIZE_TYPE GetComponentID() const override final {
+			return ComponentAllocator<T>::GetID();
+		}
+
 		ComponentAllocator() = default;
+		~ComponentAllocator() {
+			std::cout << "Allocator being deleted!" << std::endl;
+		}
 
 		ComponentAllocator(ComponentAllocator&& other) noexcept = default;
 		ComponentAllocator(const ComponentAllocator& other) = default;
@@ -101,7 +114,7 @@ namespace ECS {
 	};
 
 	template <typename T>
-	const ECS_SIZE_TYPE ComponentAllocator<T>::m_ID = Family<ComponentsFamily>::Type<T>();
+	const ECS_SIZE_TYPE ComponentAllocator<T>::m_ID = Family::Type<T>();
 
 	template <typename T, float _growth_factor = 2.0f>
 	struct PackedArray {
@@ -151,16 +164,55 @@ namespace ECS {
 		PackedArray<Entity>		m_PackedArray;
 		PackedArray<std::byte>	m_ComponentArray;
 
-		ComponentAllocatorBase*	m_Allocator;
+		ComponentAllocatorBase*	m_Allocator = nullptr;
 
 		void m_AllocatePackedSpace(const ECS_SIZE_TYPE& packed_index);
 
+		template <typename T>
+		T* m_Index(const ECS_SIZE_TYPE& index) {
+			return reinterpret_cast<T*>(&m_ComponentArray[index * m_Allocator->SizeInBytes()]);
+		}
+
+		ECS_SIZE_TYPE m_ID = 0;
+
 	public:
 		template <typename T>
-		T* GetComponentForEntity(const Entity& entity) {
-			ECS_SIZE_TYPE packed_index = m_SparseArray[entity];
+		struct Iterator {
+		public:
+			using iterator_category = std::forward_iterator_tag;
+			using difference_type = std::ptrdiff_t;
+			using value_type = T;
+			using pointer = value_type*;
+			using reference = value_type&;
 
-			if (GetIdentifier(packed_index) == null_entity) {
+		private:
+			pointer m_Ptr;
+
+		public:
+			Iterator(pointer ptr) : m_Ptr(ptr) {}
+
+			pointer& GetPtr() { return m_Ptr; }
+			
+			reference operator*() const { return *m_Ptr; }
+			pointer operator->() { return m_Ptr; }
+
+			Iterator& operator++() { m_Ptr++; return *this; }
+			Iterator operator++(int) { Iterator tmp = *this; ++(*this); return tmp; }
+
+			friend bool operator==(const Iterator& a, const Iterator& b) { return a.m_Ptr == b.m_Ptr; }
+			friend bool operator!=(const Iterator& a, const Iterator& b) { return a.m_Ptr != b.m_Ptr; }
+		};
+		
+		template <typename T>
+		Iterator<T> begin() { return Iterator<T>(&m_ComponentArray.data[0]); }
+		template <typename T>
+		Iterator<T> end()	{ return Iterator<T>(&m_ComponentArray.data[m_ComponentArray.size * m_Allocator->SizeInBytes()]); }
+
+		template <typename T>
+		T* GetComponentForEntity(const Entity& entity) {
+			ECS_SIZE_TYPE packed_index = m_SparseArray[GetIdentifier(entity)];
+
+			if (packed_index == dead_entity) {
 				LogError("Attempted to index entity {} in pool type {}, but entity doesn't exist in this pool", entity, typeid(T).name());
 				// Indicates that this entity doesn't exist, no need to go to packed array
 				return nullptr;
@@ -171,20 +223,15 @@ namespace ECS {
 
 		template <typename T>
 		void Push(const Entity& entity, T&& comp) {
-			ECS_SIZE_TYPE packed_index = m_SparseArray[entity];
-
-			if (GetIdentifier(packed_index) != null_entity) {
+			if (m_SparseArray[GetIdentifier(entity)] != dead_entity) {
 				LogError("Entity {} already had component {}; can't push!", entity, typeid(T).name());
 
 				return;
 			}
 
 			// Update index to be at end of packed list
-			packed_index = m_PackedArray.size;
-
-			// Update sparse array index
-			ECS_SIZE_TYPE& index = m_SparseArray[entity];
-			index = m_PackedArray.size << ECS_ENTITY_SHIFT_ALIGN;
+			ECS_SIZE_TYPE packed_index = m_PackedArray.size;
+			m_SparseArray[GetIdentifier(entity)] = packed_index;
 
 			// Ensure enough space for this index
 			m_AllocatePackedSpace(packed_index);
@@ -205,10 +252,10 @@ namespace ECS {
 		template <typename T>
 		void Update(const Entity& entity, T&& comp) {
 			// Get index of entity in sparse array
-			ECS_SIZE_TYPE& packed_index = m_SparseArray[entity];
+			ECS_SIZE_TYPE& packed_index = m_SparseArray[GetIdentifier(entity)];
 
 			// If entity doesn't exist
-			if (GetIdentifier(packed_index) == null_entity) {
+			if (packed_index == dead_entity) {
 				LogWarn("Entity {} doesn't have component {}, calling Push<{}> for you...", entity, typeid(T).name(), typeid(T).name());
 
 				Push<T>(entity, std::forward<T>(comp));
@@ -219,6 +266,7 @@ namespace ECS {
 			// Get location of component
 			std::byte* location = &m_ComponentArray[packed_index * m_Allocator->SizeInBytes()];
 
+			// Update component
 			m_Allocator->Assign(location, reinterpret_cast<std::byte*>(&comp));
 		}
 
@@ -231,19 +279,30 @@ namespace ECS {
 
 		bool Contains(const Entity& entity);
 
+		ECS_SIZE_TYPE GetSize() const;
+
 		~ComponentPool() {
-			delete[] m_PackedArray.data;
+			if (m_PackedArray.data != nullptr) {
+				delete[] m_PackedArray.data;
+			}
 
-			m_Allocator->DeleteRange(&m_ComponentArray[0], m_ComponentArray.capacity);
+			if (m_ComponentArray.size > 0) {
+				m_Allocator->DeleteRange(&m_ComponentArray[0], m_ComponentArray.capacity);
 
-			delete m_Allocator;
+				delete[] m_ComponentArray.data;
+			}
+
+			if (m_Allocator != nullptr) {
+				delete m_Allocator;
+			}
 		}
 
 		ComponentPool(ComponentPool&& other) noexcept
 			: m_SparseArray(std::move(other.m_SparseArray)),
 			m_PackedArray(std::move(other.m_PackedArray)),
 			m_ComponentArray(std::move(other.m_ComponentArray)),
-			m_Allocator(std::move(other.m_Allocator))
+			m_Allocator(std::move(other.m_Allocator)),
+			m_ID(std::move(other.m_ID))
 		{}
 
 		ComponentPool(const ComponentPool& other) = delete;
@@ -252,14 +311,20 @@ namespace ECS {
 			m_SparseArray = std::move(other.m_SparseArray);
 			m_PackedArray = std::move(other.m_PackedArray);
 			m_ComponentArray = std::move(other.m_ComponentArray);
+			m_ID = std::move(other.m_ID);
 		}
 
 		ComponentPool& operator=(const ComponentPool& other) = delete;
 
 		ComponentPool(ComponentAllocatorBase* allocator)
-			: m_Allocator(allocator)
+			: m_Allocator(allocator), m_ID(allocator->GetComponentID())
 		{}
 
 		friend class Registry;
+
+		template <typename... Ts>
+		friend class View;
+		template <typename T>
+		friend class SingleView;
 	};
 }

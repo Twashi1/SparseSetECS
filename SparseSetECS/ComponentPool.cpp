@@ -1,5 +1,6 @@
 #include "ComponentPool.h"
 #include "Registry.h"
+#include "View.h"
 
 namespace ECS {
 	void ComponentPool::m_AllocatePackedSpace(const ECS_SIZE_TYPE& packed_index) {
@@ -47,9 +48,9 @@ namespace ECS {
 			// Create new array
 			Entity* new_data = new Entity[new_capacity];
 			// Move data
-			std::memcpy(new_data, m_PackedArray.data, m_PackedArray.size);
+			std::memcpy(new_data, m_PackedArray.data, m_PackedArray.capacity * sizeof(Entity));
 			// Rest should be nulls
-			std::fill_n(new_data, new_capacity - m_PackedArray.size, dead_entity);
+			std::fill_n(new_data + m_PackedArray.capacity, new_capacity - m_PackedArray.capacity, dead_entity);
 
 			// Update capacity
 			m_PackedArray.capacity = new_capacity;
@@ -77,6 +78,10 @@ namespace ECS {
 
 	bool ComponentPool::Contains(const Entity& entity)
 	{
-		return m_SparseArray[entity] != dead_entity;
+		return m_SparseArray[GetIdentifier(entity)] != dead_entity;
+	}
+
+	ECS_SIZE_TYPE ComponentPool::GetSize() const {
+		return m_PackedArray.size;
 	}
 }

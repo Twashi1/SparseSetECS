@@ -47,5 +47,11 @@
     <ClInclude Include="Registry.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="View.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

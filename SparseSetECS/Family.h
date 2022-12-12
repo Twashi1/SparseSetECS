@@ -4,11 +4,6 @@
 #include "Core.h"
 
 namespace ECS {
-	typedef int FamilyID;
-	static constexpr FamilyID ComponentsFamily	= 0;
-	static constexpr FamilyID EntityFamily		= 1;
-
-	template <FamilyID>
 	class Family {
 	private:
 		static ECS_SIZE_TYPE m_Identifier() noexcept {

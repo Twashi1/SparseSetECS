@@ -1,23 +1,45 @@
 #define TWASHI_LOGGER_IMPLEMENTATION
-#include "Registry.h"
+#include "ECS.h"
+
+#include <chrono>
 
 struct MyStruct {
     int x = 3;
+};
+
+struct S2 {
+    float x = 5.0f;
 };
 
 using namespace ECS;
 
 int main()
 {
-    ECS::Registry reg;
+    Registry reg(1);
 
     reg.RegisterComponent<MyStruct>();
+    reg.RegisterComponent<S2>();
 
-    ECS::Entity my_ent = reg.Create();
+    std::array<Entity, 1000> ents;
 
-    reg.AddComponent<MyStruct>(my_ent, MyStruct(5));
+    for (int i = 0; i < 1000; i++) {
+        ents[i] = reg.Create();
+        reg.AddComponent(ents[i], MyStruct(i));
+    }
 
-    MyStruct* s = reg.GetComponent<MyStruct>(my_ent);
+    auto t0 = std::chrono::steady_clock::now();
 
-    std::cout << s->x << std::endl;
+    for (auto& tup : reg.CreateSingleView<MyStruct>()) {}
+
+    auto t1 = std::chrono::steady_clock::now();
+
+    for (auto& tup : reg.CreateView<MyStruct>()) {}
+
+    auto t2 = std::chrono::steady_clock::now();
+
+    double elapsed0 = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+    double elapsed1 = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
+
+    std::cout << "Single view took: " << elapsed0 / 1000000.0f << "ms" << std::endl;
+    std::cout << "Multi view took: " << elapsed1 / 1000000.0f << "ms" << std::endl;
 }

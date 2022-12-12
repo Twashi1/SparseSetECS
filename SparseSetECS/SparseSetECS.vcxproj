@@ -135,11 +135,13 @@
   <ItemGroup>
     <ClInclude Include="ComponentPool.h" />
     <ClInclude Include="Core.h" />
+    <ClInclude Include="ECS.h" />
     <ClInclude Include="Entity.h" />
     <ClInclude Include="Family.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="PagedArray.h" />
     <ClInclude Include="Registry.h" />
+    <ClInclude Include="View.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
