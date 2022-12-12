@@ -15,7 +15,6 @@ namespace ECS {
 		Registry* m_Registry;
 
 		ComponentPool* m_SmallestPool = nullptr;
-		ECS_SIZE_TYPE m_SmallestPoolID = std::numeric_limits<ECS_SIZE_TYPE>::max();
 		ECS_SIZE_TYPE m_SmallestPoolSize = 0;
 
 		std::tuple<Ts*...> m_GetIndex(ECS_SIZE_TYPE index) {
@@ -39,7 +38,6 @@ namespace ECS {
 		{
 			// Assert pool exists first
 			m_SmallestPool = std::min<ComponentPool*, __PoolSizeComparator>({ m_Registry->m_Pools[ComponentAllocator<Ts>::GetID()]... }, __PoolSizeComparator{});
-			m_SmallestPoolID = m_SmallestPool->m_ID; // TODO: unused?
 			m_SmallestPoolSize = m_SmallestPool->GetSize();
 		}
 
@@ -60,7 +58,7 @@ namespace ECS {
 			Iterator(View* view, const ECS_SIZE_TYPE& index)
 				: m_Index(index), m_View(view)
 			{
-				m_Current = m_View->m_GetIndex(index);
+				m_Current = m_View->m_GetIndex(m_Index);
 			}
 
 			reference operator*() { return m_Current; }
@@ -133,11 +131,11 @@ namespace ECS {
 		};
 
 		Iterator begin() {
-			return Iterator(reinterpret_cast<T*>(&(m_Pool->m_ComponentArray.data[0])));
+			return Iterator(reinterpret_cast<T*>(m_Pool->begin<T>().GetPtr()));
 		}
 
 		Iterator end() {
-			return Iterator(reinterpret_cast<T*>(&(m_Pool->m_ComponentArray.data[m_Pool->m_ComponentArray.size * m_Pool->m_Allocator->SizeInBytes()])));
+			return Iterator(reinterpret_cast<T*>(m_Pool->end<T>().GetPtr()));
 		}
 
 		SingleView(ComponentPool* pool) : m_Pool(pool) {}

@@ -119,6 +119,10 @@ namespace ECS {
 
 		template <typename... Ts>
 		View<Ts...> CreateView() {
+			if (sizeof...(Ts) == 1) {
+				LogInfo("Prefer CreateSingleView when iterating 1 component");
+			}
+
 			// Check all pools are allocated
 			if (((m_Pools[ComponentAllocator<Ts>::GetID()] == nullptr) || ...)) {
 				LogFatal("Can't create view: one of the components is not registered!");
