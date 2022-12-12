@@ -40,6 +40,6 @@ int main()
     double elapsed0 = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
     double elapsed1 = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
 
-    std::cout << "Single view took: " << elapsed0 / 1000000.0f << "ms" << std::endl;
-    std::cout << "Multi view took: " << elapsed1 / 1000000.0f << "ms" << std::endl;
+    std::cout << "Single view took: " << std::setprecision(12) << elapsed0 / 1000000.0f << "ms" << std::endl;
+    std::cout << "Multi view took: " << std::setprecision(12) << elapsed1 / 1000000.0f << "ms" << std::endl;
 }
