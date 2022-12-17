@@ -1,6 +1,7 @@
 #include "ComponentPool.h"
 #include "Registry.h"
 #include "View.h"
+#include "Group.h"
 
 namespace ECS {
 	void ComponentPool::m_AllocatePackedSpace(const ECS_SIZE_TYPE& packed_index) {

@@ -6,28 +6,23 @@ namespace ECS {
 	template <typename... Ts>
 	class View {
 	private:
-		struct __PoolSizeComparator {
-			bool operator()(ComponentPool* a, ComponentPool* b) {
-				return a->m_PackedArray.size < b->m_PackedArray.size;
-			}
-		};
-
 		Registry* m_Registry;
 
 		ComponentPool* m_SmallestPool = nullptr;
 		ECS_SIZE_TYPE m_SmallestPoolSize = 0;
 
-		std::tuple<Ts*...> m_GetIndex(ECS_SIZE_TYPE index) {
+		std::tuple<Entity, Ts*...> m_GetIndex(ECS_SIZE_TYPE index) {
 			if (index >= m_SmallestPoolSize) {
 				// "Soft error"
-				return std::tuple<Ts*...>{};
+				return std::tuple<Entity, Ts*...>{};
 			}
 
 			// Get entity from smallest pool
 			Entity& entity = m_SmallestPool->m_PackedArray[index];
 
 			// For each pool, index the entity to get the component (GetComponentForEntity)
-			return std::make_tuple<Ts*...>(
+			return std::make_tuple<Entity, Ts*...>(
+				std::forward<Entity>(entity),
 				m_Registry->m_Pools[ComponentAllocator<Ts>::GetID()]->GetComponentForEntity<Ts>(entity)...
 				);
 		}
@@ -37,7 +32,7 @@ namespace ECS {
 			: m_Registry(registry)
 		{
 			// Assert pool exists first
-			m_SmallestPool = std::min<ComponentPool*, __PoolSizeComparator>({ m_Registry->m_Pools[ComponentAllocator<Ts>::GetID()]... }, __PoolSizeComparator{});
+			m_SmallestPool = std::min<ComponentPool*, Registry::__PoolSizeComparator>({ m_Registry->m_Pools[ComponentAllocator<Ts>::GetID()]... }, Registry::__PoolSizeComparator{});
 			m_SmallestPoolSize = m_SmallestPool->GetSize();
 		}
 
@@ -45,7 +40,7 @@ namespace ECS {
 		public:
 			using iterator_category = std::forward_iterator_tag;
 			using difference_type = std::ptrdiff_t;
-			using value_type = std::tuple<Ts*...>;
+			using value_type = std::tuple<Entity, Ts*...>;
 			using pointer = value_type*;
 			using reference = value_type&;
 

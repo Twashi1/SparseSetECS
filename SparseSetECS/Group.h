@@ -1,0 +1,74 @@
+#pragma once
+
+#include "Registry.h"
+
+namespace ECS {
+	template <typename... Ts>
+	class FullOwningGroup {
+	private:
+		FullOwningGroupData* m_GroupData; // Registry stores and may update this data for us
+		Registry* m_Registry;
+
+		std::tuple<Ts*...> m_GetIndex(ECS_SIZE_TYPE index) {
+			// "Perfect SOA", but there's still so much indirection
+			// Iterate each component pool and grab component at index
+			return std::make_tuple<Ts*...>(m_Registry->m_Pools[
+				ComponentAllocator<Ts>::GetID()
+			]->m_Index<Ts>(index)...);
+		}
+
+	public:
+		// TODO: another iterator...
+		struct Iterator {
+		public:
+			using iterator_category = std::forward_iterator_tag;
+			using difference_type = std::ptrdiff_t;
+			using value_type = std::tuple<Ts*...>;
+			using pointer = value_type*;
+			using reference = value_type&;
+
+		private:
+			FullOwningGroup<Ts...>* m_Group;
+			ECS_SIZE_TYPE m_Index = 0;
+			value_type m_Current;
+
+		public:
+			Iterator(FullOwningGroup* group, const ECS_SIZE_TYPE& index)
+				: m_Index(index), m_Group(group)
+			{
+				m_Current = m_Group->m_GetIndex(m_Index);
+			}
+
+			reference operator*() { return m_Current; }
+			pointer operator->() { return &m_Current; }
+
+			Iterator& operator++() {
+				m_Index++;
+
+				m_Current = m_Group->m_GetIndex(m_Index);
+
+				return *this;
+			}
+			Iterator operator++(int) {
+				Iterator tmp = *this;
+
+				m_Current = m_Group->m_GetIndex(m_Index);
+
+				++(*this);
+				return tmp;
+			}
+
+			friend bool operator==(const Iterator& a, const Iterator& b) { return a.m_Index == b.m_Index; }
+			friend bool operator!=(const Iterator& a, const Iterator& b) { return a.m_Index != b.m_Index; }
+		};
+
+		Iterator begin() { return Iterator(this, m_GroupData->start_index); }
+		Iterator end() { return Iterator(this, m_GroupData->end_index); }
+
+		FullOwningGroup(Registry* registry, FullOwningGroupData* data)
+			: m_Registry(registry), m_GroupData(data) {}
+
+		friend Registry;
+		friend Iterator;
+	};
+}

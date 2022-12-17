@@ -3,25 +3,6 @@
 #include "Core.h"
 
 namespace ECS {
-	// Shamelessly stolen from entt
-	/*
-	inline constexpr ECS_SIZE_TYPE NextPowerOf2(const ECS_SIZE_TYPE value) noexcept {
-		if (value == std::numeric_limits<ECS_SIZE_TYPE>::max()) return value;
-
-		ECS_SIZE_TYPE current =  value - (value != 0u);
-
-		for (ECS_SIZE_TYPE i = 1; i < std::numeric_limits<ECS_SIZE_TYPE>::digits; i = i * 2) {
-			current |= current >> i;
-		}
-
-		return ++current;
-	}
-
-	inline ECS_SIZE_TYPE FastLog2OfPower2(ECS_SIZE_TYPE x) noexcept {
-		return sizeof(ECS_SIZE_TYPE) * CHAR_BIT - _lzcnt_u32(x) - 1;
-	}
-	*/
-
 	template <typename T, ECS_SIZE_TYPE _page_size, ECS_SIZE_TYPE _capacity, T _default = 0>
 	struct PagedArray {
 	private:

@@ -1,12 +1,16 @@
 #pragma once
 
 #include "ComponentPool.h"
+#include "GroupData.h"
 
 namespace ECS {
 	template <typename... Ts>
 	class View;
 	template <typename T>
 	class SingleView;
+	template <typename... Ts>
+	class FullOwningGroup;
+	struct FullOwningGroupData;
 
 	class Registry {
 	private:
@@ -14,17 +18,45 @@ namespace ECS {
 		ECS_SIZE_TYPE m_DefaultCapacity = 0;
 		ECS_SIZE_TYPE m_NextEntity = 0;
 
+		// Data about the current full owning group
+		FullOwningGroupData* m_CurrentGroup = nullptr;
+
+		struct __PoolSizeComparator {
+			bool operator()(ComponentPool* a, ComponentPool* b) {
+				return a->m_PackedArray.size < b->m_PackedArray.size;
+			}
+		};
+
 	public:
 		Registry(ECS_SIZE_TYPE default_capacity = 1000);
+		~Registry();
 
+		// Resize entire registry (all active component pools)
 		void Resize(ECS_SIZE_TYPE new_capacity);
+		
+		// Resize specific component pool 
+		template <typename T> void ResizePool(ECS_SIZE_TYPE new_capacity) {
+			ECS_SIZE_TYPE pool_id = ComponentAllocator<T>::GetID();
 
+			// Ensure pool is registered
+			if (m_Pools[pool_id] == nullptr) {
+				LogError("Component pool not registered; register pool before attempting resize");
+
+				return;
+			}
+
+			// Call resize
+			m_Pools[pool_id]->Resize(new_capacity);
+		}
+
+		// Free up an entity id and all associated components
 		void FreeEntity(const Entity& entity);
 
+		// Get a new entity to use
 		[[nodiscard]] Entity Create();
 
-		template <typename T>
-		void RegisterComponent() {
+		// Register a component for future use
+		template <typename T> void RegisterComponent() {
 			ECS_SIZE_TYPE id = ComponentAllocator<T>::GetID();
 
 			if (m_Pools[id] != nullptr) {
@@ -36,8 +68,8 @@ namespace ECS {
 			m_Pools[id]->Resize(m_DefaultCapacity);
 		}
 
-		template <typename T>
-		void AddComponent(const Entity& entity, T&& comp) {
+		// Add a new component to an entity
+		template <typename T> void AddComponent(const Entity& entity, T&& comp) {
 			ECS_SIZE_TYPE comp_id = ComponentAllocator<T>::GetID();
 
 			// Pool not registered
@@ -52,8 +84,8 @@ namespace ECS {
 			pool->Push<T>(entity, std::forward<T>(comp));
 		}
 
-		template <typename T>
-		void UpdateComponent(const Entity& entity, T&& comp) {
+		// Update the value of an already existing component
+		template <typename T> void ReplaceComponent(const Entity& entity, T&& comp) {
 			ECS_SIZE_TYPE comp_id = ComponentAllocator<T>::GetID();
 
 			// Pool not registered
@@ -65,11 +97,11 @@ namespace ECS {
 			// Get pool
 			ComponentPool*& pool = m_Pools[comp_id];
 
-			pool->Update<T>(entity, std::forward<T>(comp));
+			pool->Replace<T>(entity, std::forward<T>(comp));
 		}
 
-		template <typename T>
-		void RemoveComponent(const Entity& entity) {
+		// Remove component from an entity
+		template <typename T> void RemoveComponent(const Entity& entity) {
 			ECS_SIZE_TYPE comp_id = ComponentAllocator<T>::GetID();
 
 			// Pool not registered
@@ -84,8 +116,8 @@ namespace ECS {
 			pool->FreeEntity(entity);
 		}
 
-		template <typename T>
-		T* GetComponent(const Entity& entity) {
+		// Get a pointer to a component for an entity
+		template <typename T> T* GetComponent(const Entity& entity) {
 			// TODO: assert pool not nullptr
 			ComponentPool*& pool = m_Pools[ComponentAllocator<T>::GetID()];
 
@@ -116,6 +148,8 @@ namespace ECS {
 		friend class View;
 		template <typename T>
 		friend class SingleView;
+		template <typename... Ts>
+		friend class FullOwningGroup;
 
 		template <typename... Ts>
 		View<Ts...> CreateView() {
@@ -138,6 +172,58 @@ namespace ECS {
 			}
 
 			return SingleView<T>(m_Pools[ComponentAllocator<T>::GetID()]);
+		}
+
+		template <typename... Ts>
+		FullOwningGroup<Ts...> CreateGroup() {
+			// TODO: assert all Ts registered
+			if (m_CurrentGroup != nullptr) {
+				LogFatal("Must destroy existing group before creating new one!");
+
+				return FullOwningGroup<Ts...>(this, m_CurrentGroup);
+			}
+
+			// Create empty group data
+			m_CurrentGroup = new FullOwningGroupData{};
+
+			// Scoping this because we really don't wanna use affected components again since we moved it
+			{
+				// Calculate the affected components
+				std::vector<ECS_SIZE_TYPE> affected_components = { ComponentAllocator<Ts>::GetID()... };
+				// Set that for the group
+				m_CurrentGroup->owned_component_ids = std::move(affected_components);
+			}
+
+			// Iterate each affected entity which contains all components
+			// Grab smallest pool for these arguments
+			ComponentPool* smallest_pool = std::min<ComponentPool*, __PoolSizeComparator>({ m_Pools[ComponentAllocator<Ts>::GetID()]... }, __PoolSizeComparator{});
+			ECS_SIZE_TYPE smallest_size = smallest_pool->GetSize();
+
+			// Iterate entities within this smallest pool
+			for (ECS_SIZE_TYPE small_pool_index = 0; small_pool_index < smallest_size; small_pool_index++) {
+				// Get entity
+				Entity& entity = smallest_pool->m_PackedArray.data[small_pool_index];
+
+				// If this entity matches all our types
+				if (AllOf<Ts...>(entity)) {
+					// We have to move this entity into our group
+					// So for each relevant pool, swap it into the correct location
+					([&] {
+						// Get the relevant pool
+						ComponentPool* pool = m_Pools[ComponentAllocator<Ts>::GetID()];
+						// Get entity at the location we need to replace
+						// Also incrementing the end index of the group here since we're "adding" to it
+						Entity& replacement_entity = pool->m_PackedArray.data[m_CurrentGroup->end_index];
+						// Swap the entities
+						pool->Swap(entity, replacement_entity);
+					} (), ...);
+					// Increment the end index because we finished sorting one entity
+					++(m_CurrentGroup->end_index);
+				}
+			}
+
+			// All our entities are "sorted" now, so just create a group of relevant size
+			return FullOwningGroup<Ts...>(this, m_CurrentGroup);
 		}
 	};
 }

@@ -76,6 +76,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -129,6 +130,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ComponentPool.cpp" />
+    <ClCompile Include="ECS.cpp" />
     <ClCompile Include="Registry.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
@@ -138,6 +140,8 @@
     <ClInclude Include="ECS.h" />
     <ClInclude Include="Entity.h" />
     <ClInclude Include="Family.h" />
+    <ClInclude Include="Group.h" />
+    <ClInclude Include="GroupData.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="PagedArray.h" />
     <ClInclude Include="Registry.h" />

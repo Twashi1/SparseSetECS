@@ -1,4 +1,3 @@
-#define TWASHI_LOGGER_IMPLEMENTATION
 #include "ECS.h"
 
 #include <chrono>
@@ -15,7 +14,7 @@ using namespace ECS;
 
 int main()
 {
-    Registry reg(1);
+    Registry reg(1000);
 
     reg.RegisterComponent<MyStruct>();
     reg.RegisterComponent<S2>();
@@ -28,7 +27,9 @@ int main()
         reg.AddComponent(ents[i], S2(0.5f));
     }
 
-    for (auto& tup : reg.CreateView<MyStruct, S2>()) {
-        std::cout << std::get<0>(tup)->x << ", " << std::get<1>(tup)->x << std::endl;
-    }
+    for (auto& tup : reg.CreateView<MyStruct, S2>()) {}
+
+    auto group = reg.CreateGroup<MyStruct, S2>();
+
+    for (auto& tup : group) {}
 }

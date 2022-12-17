@@ -10,7 +10,10 @@ namespace ECS {
 	class View;
 	template <typename T>
 	class SingleView;
+	template <typename... Ts>
+	class FullOwningGroup;
 
+	// Base for the component allocator, defines some methods for moving data of type T
 	class ComponentAllocatorBase {
 	public:
 		virtual ~ComponentAllocatorBase() = default;
@@ -25,6 +28,7 @@ namespace ECS {
 		virtual ECS_SIZE_TYPE GetComponentID() const = 0;
 	};
 
+	// For moving, deleting, and allocating data of some type T (somewhat) safely
 	template <typename T>
 	class ComponentAllocator final : public ComponentAllocatorBase {
 	private:
@@ -34,8 +38,8 @@ namespace ECS {
 		static constexpr ECS_SIZE_TYPE GetID() { return m_ID; }
 
 		void Assign(std::byte* dest, std::byte* src) const override final {
+			// Attempt a simple memcpy if possible
 			if constexpr (std::is_trivially_constructible_v<T>) {
-				// We can do a simple memcpy
 				memcpy(dest, src, sizeof(T));
 			}
 			else if constexpr (std::is_move_constructible_v<T>) {
@@ -57,10 +61,11 @@ namespace ECS {
 		}
 		
 		void AssignRange(std::byte* dest, std::byte* src, ECS_SIZE_TYPE count) const override final {
+			// Attempt simple memcpy of entire range if possible (very fast)
 			if constexpr (std::is_trivially_constructible_v<T>) {
-				// We can do a simple memcpy
 				memcpy(dest, src, count * sizeof(T));
 			}
+			// Otherwise we must do member-wise move/copy (very slow)
 			else if constexpr (std::is_move_constructible_v<T> || std::is_copy_constructible_v<T>) {
 				// Iterate each member
 				for (ECS_SIZE_TYPE i = 0; i < count; i++) {
@@ -74,7 +79,7 @@ namespace ECS {
 		}
 
 		void DeleteRange(std::byte* data, ECS_SIZE_TYPE count) const override final {
-			// If not trivially destructible, call delete for each member
+			// If not trivially destructible, we must cll delete for each member
 			if constexpr (!std::is_trivially_destructible_v<T>) {
 				// Iterate each member
 				for (ECS_SIZE_TYPE i = 0; i < count; i++) {
@@ -82,12 +87,14 @@ namespace ECS {
 					Delete(data + i * sizeof(T));
 				}
 			}
+			// Otherwise do nothing
 		}
 
 		void Swap(std::byte* a, std::byte* b) const override final {
 			// Allocate space to store a temporary
 			std::byte* tmp = new std::byte[sizeof(T)];
 
+			// Some move shenanigans
 			Assign(tmp, a);
 			Assign(a,   b);
 			Assign(b, tmp);
@@ -102,9 +109,7 @@ namespace ECS {
 		}
 
 		ComponentAllocator() = default;
-		~ComponentAllocator() {
-			std::cout << "Allocator being deleted!" << std::endl;
-		}
+		~ComponentAllocator() {}
 
 		ComponentAllocator(ComponentAllocator&& other) noexcept = default;
 		ComponentAllocator(const ComponentAllocator& other) = default;
@@ -250,7 +255,7 @@ namespace ECS {
 		}
 
 		template <typename T>
-		void Update(const Entity& entity, T&& comp) {
+		void Replace(const Entity& entity, T&& comp) {
 			// Get index of entity in sparse array
 			ECS_SIZE_TYPE& packed_index = m_SparseArray[GetIdentifier(entity)];
 
@@ -272,7 +277,7 @@ namespace ECS {
 
 		void Swap(const Entity& a, const Entity& b);
 
-		// TODO: fix when version control
+		// TODO: fix when version control is implemented
 		void FreeEntity(const Entity& entity);
 
 		void Resize(ECS_SIZE_TYPE new_capacity);
@@ -326,5 +331,7 @@ namespace ECS {
 		friend class View;
 		template <typename T>
 		friend class SingleView;
+		template <typename... Ts>
+		friend class FullOwningGroup;
 	};
 }
