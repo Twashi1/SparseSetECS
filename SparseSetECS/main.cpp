@@ -19,24 +19,26 @@ int main()
 {
     Registry reg(1000);
 
+    reg.RegisterComponent<std::string>();
+
     std::array<Entity, 100> ents;
 
     for (int i = 0; i < 10; i++) {
         ents[i] = reg.Create();
 
-        LogTrace("Registry created: {}", ents[i]);
+        reg.AddComponent<std::string>(ents[i], "Hello world");
     }
 
-    reg.FreeEntity(ents[5]);
-    LogTrace("Freed entity 5");
-
     reg.FreeEntity(ents[3]);
-    LogTrace("Freed entity 3");
+    ents[3] = reg.Create();
 
-    reg.FreeEntity(ents[2]);
-    LogTrace("Freed entity 2");
+    reg.AddComponent<std::string>(ents[3], "Hello new world");
 
-    for (int i = 0; i < 4; i++) {
-        LogTrace("Generated entity {}", GetIdentifier(reg.Create()));
+    for (auto& string : reg.CreateSingleView<std::string>()) {
+        std::cout << string << std::endl;
+    }
+
+    for (auto& [entity, string] : reg.CreateView<std::string>()) {
+        std::cout << "Entity " << GetIdentifier(entity) << " has string " << *string << std::endl;
     }
 }
