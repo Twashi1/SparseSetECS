@@ -31,6 +31,8 @@ namespace ECS {
 		std::swap(index_a, index_b);
 	}
 
+	ECS_SIZE_TYPE ComponentPool::GetID() const { return m_ID; }
+
 	void ComponentPool::FreeEntity(const Entity& entity) {
 		ECS_SIZE_TYPE& index = m_SparseArray[entity];
 

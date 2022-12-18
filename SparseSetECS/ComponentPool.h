@@ -277,6 +277,8 @@ namespace ECS {
 
 		void Swap(const Entity& a, const Entity& b);
 
+		ECS_SIZE_TYPE GetID() const;
+
 		// TODO: fix when version control is implemented
 		void FreeEntity(const Entity& entity);
 
