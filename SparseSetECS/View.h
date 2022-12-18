@@ -126,11 +126,11 @@ namespace ECS {
 		};
 
 		Iterator begin() {
-			return Iterator(reinterpret_cast<T*>(m_Pool->begin<T>().GetPtr()));
+			return Iterator(m_Pool->begin<T>().GetPtr());
 		}
 
 		Iterator end() {
-			return Iterator(reinterpret_cast<T*>(m_Pool->end<T>().GetPtr()));
+			return Iterator(m_Pool->end<T>().GetPtr());
 		}
 
 		SingleView(ComponentPool* pool) : m_Pool(pool) {}

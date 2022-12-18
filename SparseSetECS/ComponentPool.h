@@ -209,9 +209,9 @@ namespace ECS {
 		};
 		
 		template <typename T>
-		Iterator<T> begin() { return Iterator<T>(&m_ComponentArray.data[0]); }
+		Iterator<T> begin() { return Iterator<T>(reinterpret_cast<T*>(&m_ComponentArray.data[0])); }
 		template <typename T>
-		Iterator<T> end()	{ return Iterator<T>(&m_ComponentArray.data[m_ComponentArray.size * m_Allocator->SizeInBytes()]); }
+		Iterator<T> end()	{ return Iterator<T>(reinterpret_cast<T*>(&m_ComponentArray.data[m_ComponentArray.size * m_Allocator->SizeInBytes()])); }
 
 		template <typename T>
 		T* GetComponentForEntity(const Entity& entity) {
