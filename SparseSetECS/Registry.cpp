@@ -26,6 +26,7 @@ namespace ECS {
 	}
 	
 	void Registry::FreeEntity(const Entity& entity) {
+		// Free components assosciated with that entity
 		for (ComponentPool*& pool : m_Pools) {
 			if (pool != nullptr) {
 				if (pool->Contains(entity)) {
@@ -33,13 +34,43 @@ namespace ECS {
 				}
 			}
 		}
+
+		// Now setup entity to be recycled
+		// Increment available entities
+		++m_AvailableEntities;
+		// Get a reference to the now destroyed entity in our entities in use vector
+		Entity& destroyed_entity = m_EntitiesInUse[GetIdentifier(entity)];
+		// Increase version of this destroyed entity
+		AddValueToVersion(destroyed_entity, 1);
+		// Now swap that with whatever is our next entity right now
+		std::swap(destroyed_entity, m_NextEntity);
+		// Now next entity points to where our destroyed entity was, which points to what next was pointing towards
 	}
 	
 	[[nodiscard]] Entity Registry::Create() {
-		ECS_SIZE_TYPE new_identifier = m_NextEntity++;
+		// If we have an entity available for recycling
+		if (m_AvailableEntities > 0) {
+			// Get what the next entity in our list is pointing to
+			Entity& next_next_entity = m_EntitiesInUse[GetIdentifier(m_NextEntity)];
+			// Swap the next entity (the one about to be recycled) and what it points towards
+			std::swap(m_NextEntity, next_next_entity);
+			// Decrement available entities
+			--m_AvailableEntities;
+			// Return our next entity (which is whatever is stored at next_next_entity after the swap)
+			return next_next_entity;
+		}
+		// Just return a new entity
+		else {
+			if (m_CurrentLargestEntity > ECS_ENTITY_MAX) {
+				LogError("Ran out of entities, attempt to free entities so they can be recycled");
 
-		Entity new_entity = new_identifier;
+				return ECS_ENTITY_MAX;
+			}
 
-		return new_entity;
+			// Push into entities in use
+			m_EntitiesInUse.push_back(m_CurrentLargestEntity);
+			// Return entity
+			return m_CurrentLargestEntity++;
+		}
 	}
 }

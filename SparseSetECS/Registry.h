@@ -16,7 +16,13 @@ namespace ECS {
 	private:
 		std::array<ComponentPool*, ECS_MAX_COMPONENTS> m_Pools;
 		ECS_SIZE_TYPE m_DefaultCapacity = 0;
-		ECS_SIZE_TYPE m_NextEntity = 0;
+
+		Entity m_NextEntity = ECS_ENTITY_MAX; // Next entity to be recycled
+		// TODO: rename, not current but next
+		Entity m_CurrentLargestEntity = 0; // The largest value entity we have right now
+		ECS_SIZE_TYPE m_AvailableEntities = 0; // Amount of available entities for recycling
+		// In this array, a given entity's identifier also represents its position within
+		std::vector<Entity> m_EntitiesInUse; // All entities currently in use (alive/dead)
 
 		// Data about the current full owning group
 		FullOwningGroupData* m_CurrentGroup = nullptr;

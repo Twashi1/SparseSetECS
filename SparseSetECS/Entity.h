@@ -11,6 +11,10 @@ namespace ECS {
 		return entity & ECS_VERSION_BITMASK >> ECS_VERSION_SHIFT_ALIGN;
 	}
 
+	inline void AddValueToVersion(Entity& entity, const ECS_SIZE_TYPE& value) {
+		entity = entity + (value << ECS_VERSION_SHIFT_ALIGN);
+	}
+
 	inline Version_t GetIdentifier(const Entity& entity) {
 		return entity & ECS_ENTITY_BITMASK;
 	}
