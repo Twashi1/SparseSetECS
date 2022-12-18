@@ -41,7 +41,7 @@ namespace Logger {
 		if (severity == TWASHI_LOG_FATAL) { exit(EXIT_FAILURE); }
 	}
 #else
-		// Forward decl
+		// Forward decl (pretty cheaty)
 		;
 #endif
 }
