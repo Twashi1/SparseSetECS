@@ -21,6 +21,8 @@ int main()
 
     std::array<Entity, 1000> ents;
 
+    auto group = reg.CreateGroup<MyStruct, S2>();
+
     for (int i = 0; i < 1000; i++) {
         ents[i] = reg.Create();
         reg.AddComponent(ents[i], MyStruct(i));
@@ -28,8 +30,6 @@ int main()
     }
 
     for (auto& tup : reg.CreateView<MyStruct, S2>()) {}
-
-    auto group = reg.CreateGroup<MyStruct, S2>();
 
     for (auto& tup : group) {}
 }

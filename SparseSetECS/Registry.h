@@ -78,10 +78,65 @@ namespace ECS {
 				RegisterComponent<T>();
 			}
 
+			bool group_contains_new_comp = false;
+			bool entity_belongs = true;
+
+			// If we have a group currently used
+			if (m_CurrentGroup != nullptr) {
+				// Check if this entity already has the other types of this group
+				// Iterate the types in this group
+				for (ECS_SIZE_TYPE owned_component : m_CurrentGroup->owned_component_ids) {
+					if (owned_component == comp_id) {
+						group_contains_new_comp = true;
+					}
+
+					bool found_entity = false;
+
+					// Iterate each component pool
+					for (ComponentPool* pool : m_Pools) {
+						if (pool != nullptr) {
+							// Check if pool is one of our component ids
+							if (pool->m_ID == owned_component) {
+								// This pool contains us
+								if (pool->Contains(entity)) {
+									found_entity = true;
+								}
+							}
+						}
+					}
+
+					// This entity didn't match the full signature for the group, so end checking
+					if (!found_entity) {
+						entity_belongs = false;
+						break;
+					}
+				}
+			}
+
 			// Get pool
 			ComponentPool*& pool = m_Pools[comp_id];
 
+			// Push component into pool
 			pool->Push<T>(entity, std::forward<T>(comp));
+
+			// We should move this entity into our group
+			bool should_move_entity = entity_belongs && group_contains_new_comp;
+			if (should_move_entity) {
+				// So iterate each affected pool
+				for (ComponentPool* pool : m_Pools) {
+					if (pool != nullptr) {
+						// If this pool is in our group
+						if (m_CurrentGroup->ContainsID(pool->m_ID)) {
+							// Get entity we have to replace
+							Entity& replacement_entity = pool->m_PackedArray.data[m_CurrentGroup->end_index];
+							// Move this entity to the end of the group
+							pool->Swap(entity, replacement_entity);
+						}
+					}
+				}
+				// Increment size of group because we added an entity to it
+				++(m_CurrentGroup->end_index);
+			}
 		}
 
 		// Update the value of an already existing component

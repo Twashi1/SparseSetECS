@@ -8,7 +8,13 @@ namespace ECS {
 		ECS_SIZE_TYPE end_index = 0;
 		std::vector<ECS_SIZE_TYPE> owned_component_ids;
 
-		FullOwningGroupData() {}
+		FullOwningGroupData() = default;
+
+		inline bool ContainsID(ECS_SIZE_TYPE id) {
+			return std::find(
+				owned_component_ids.begin(), owned_component_ids.end(), id
+			) != owned_component_ids.end();
+		}
 
 		template <typename T>
 		bool Contains() {
