@@ -254,6 +254,35 @@ namespace ECS {
 			++m_ComponentArray.size;
 		}
 
+		template <typename T, typename... Args>
+		void Emplace(const Entity& entity, Args&&... args) {
+			if (m_SparseArray[GetIdentifier(entity)] != dead_entity) {
+				LogError("Entity {} already had component {}; can't push!", entity, typeid(T).name());
+
+				return;
+			}
+
+			// Update index to be at end of packed list
+			ECS_SIZE_TYPE packed_index = m_PackedArray.size;
+			m_SparseArray[GetIdentifier(entity)] = packed_index;
+
+			// Ensure enough space for this index
+			m_AllocatePackedSpace(packed_index);
+
+			// Add entity into packed array
+			m_PackedArray[packed_index] = entity;
+
+			// Get location for this index
+			std::byte* location = &m_ComponentArray[packed_index * m_Allocator->SizeInBytes()];
+
+			// Construct directly in that location (no allocation here)
+			new (location) T(args...);
+
+			// Increment size of both arrays
+			++m_PackedArray.size;
+			++m_ComponentArray.size;
+		}
+
 		template <typename T>
 		void Replace(const Entity& entity, T&& comp) {
 			// Get index of entity in sparse array

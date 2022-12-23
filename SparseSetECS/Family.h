@@ -6,10 +6,7 @@
 namespace ECS {
 	class Family {
 	private:
-		static ECS_SIZE_TYPE m_Identifier() noexcept {
-			static ECS_SIZE_TYPE value = 0;
-			return value++;
-		}
+		static ECS_SIZE_TYPE m_Identifier() noexcept;
 
 	public:
 		template <typename>

@@ -19,26 +19,13 @@ int main()
 {
     Registry reg(1000);
 
-    reg.RegisterComponent<std::string>();
+    reg.RegisterComponent<int>();
+    Entity e = reg.Create();
 
-    std::array<Entity, 100> ents;
+    reg.EmplaceComponent<int>(e, 9);
+    reg.ApplyToComponent<int>(e, [](auto& val_ptr) { *val_ptr = 5; std::cout << "I got called" << std::endl; });
 
-    for (int i = 0; i < 10; i++) {
-        ents[i] = reg.Create();
+    int* val = reg.GetComponent<int>(e);
 
-        reg.AddComponent<std::string>(ents[i], "Hello world");
-    }
-
-    reg.FreeEntity(ents[3]);
-    ents[3] = reg.Create();
-
-    reg.AddComponent<std::string>(ents[3], "Hello new world");
-
-    for (auto& string : reg.CreateSingleView<std::string>()) {
-        std::cout << string << std::endl;
-    }
-
-    for (auto& [entity, string] : reg.CreateView<std::string>()) {
-        std::cout << "Entity " << GetIdentifier(entity) << " has string " << *string << std::endl;
-    }
+    std::cout << "Value is " << *val << std::endl;
 }

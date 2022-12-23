@@ -33,6 +33,10 @@ namespace ECS {
 			}
 		};
 
+		// TODO: rename to "full-owned group"? or at least a consitent name between the two
+		bool m_DoesEntityBelongToCurrentGroup(const Entity& entity);
+		void m_MoveEntityIntoGroup(const Entity& entity);
+
 	public:
 		Registry(ECS_SIZE_TYPE default_capacity = 1000);
 		~Registry();
@@ -74,6 +78,49 @@ namespace ECS {
 			m_Pools[id]->Resize(m_DefaultCapacity);
 		}
 
+		template <typename T, typename Func> void ApplyToComponent(const Entity& entity, Func&& func) {
+			ECS_SIZE_TYPE comp_id = ComponentAllocator<T>::GetID();
+
+			if (m_Pools[comp_id] == nullptr) {
+				LogError("Component pool not registered; must exist if trying to apply function");
+
+				return;
+			}
+
+			ComponentPool*& pool = m_Pools[comp_id];
+			
+			if (!pool->Contains(entity)) {
+				LogError("Pool didn't contain entity, couldn't patch!");
+
+				return;
+			}
+
+			T* component = pool->GetComponentForEntity<T>(entity);
+			// Call function on component
+			func(component);
+		}
+
+		template <typename T, typename... Args> void EmplaceComponent(const Entity& entity, Args&&... args) {
+			ECS_SIZE_TYPE comp_id = ComponentAllocator<T>::GetID();
+
+			if (m_Pools[comp_id] == nullptr) {
+				LogWarn("Pool was not registered before use, registering for you");
+				RegisterComponent<T>();
+			}
+
+			// Emplace this component at the end of the group
+			m_Pools[comp_id]->Emplace<T>(entity, std::forward<Args...>(args)...);
+
+			// TODO: could speed up by inserting entity into correct location,
+			//		 and moving whatever is at that location to the end of the group
+			if (m_DoesEntityBelongToCurrentGroup(entity)) {
+				// First we're going to emplace
+				m_MoveEntityIntoGroup(entity);
+			}
+		}
+
+		// TODO: Apply function to component
+
 		// Add a new component to an entity
 		template <typename T> void AddComponent(const Entity& entity, T&& comp) {
 			ECS_SIZE_TYPE comp_id = ComponentAllocator<T>::GetID();
@@ -84,64 +131,17 @@ namespace ECS {
 				RegisterComponent<T>();
 			}
 
-			bool group_contains_new_comp = false;
-			bool entity_belongs = true;
-
-			// If we have a group currently used
-			if (m_CurrentGroup != nullptr) {
-				// Check if this entity already has the other types of this group
-				// Iterate the types in this group
-				for (ECS_SIZE_TYPE owned_component : m_CurrentGroup->owned_component_ids) {
-					if (owned_component == comp_id) {
-						group_contains_new_comp = true;
-					}
-
-					bool found_entity = false;
-
-					// Iterate each component pool
-					for (ComponentPool* pool : m_Pools) {
-						if (pool != nullptr) {
-							// Check if pool is one of our component ids
-							if (pool->m_ID == owned_component) {
-								// This pool contains us
-								if (pool->Contains(entity)) {
-									found_entity = true;
-								}
-							}
-						}
-					}
-
-					// This entity didn't match the full signature for the group, so end checking
-					if (!found_entity) {
-						entity_belongs = false;
-						break;
-					}
-				}
-			}
-
 			// Get pool
 			ComponentPool*& pool = m_Pools[comp_id];
 
 			// Push component into pool
 			pool->Push<T>(entity, std::forward<T>(comp));
 
+			// TODO: could speed up by inserting entity into correct location,
+			//		 and moving whatever is at that location to the end of the group
 			// We should move this entity into our group
-			bool should_move_entity = entity_belongs && group_contains_new_comp;
-			if (should_move_entity) {
-				// So iterate each affected pool
-				for (ComponentPool* pool : m_Pools) {
-					if (pool != nullptr) {
-						// If this pool is in our group
-						if (m_CurrentGroup->ContainsID(pool->m_ID)) {
-							// Get entity we have to replace
-							Entity& replacement_entity = pool->m_PackedArray.data[m_CurrentGroup->end_index];
-							// Move this entity to the end of the group
-							pool->Swap(entity, replacement_entity);
-						}
-					}
-				}
-				// Increment size of group because we added an entity to it
-				++(m_CurrentGroup->end_index);
+			if (m_DoesEntityBelongToCurrentGroup(entity)) {
+				m_MoveEntityIntoGroup(entity);
 			}
 		}
 

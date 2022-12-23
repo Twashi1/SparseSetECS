@@ -131,6 +131,7 @@
   <ItemGroup>
     <ClCompile Include="ComponentPool.cpp" />
     <ClCompile Include="ECS.cpp" />
+    <ClCompile Include="Family.cpp" />
     <ClCompile Include="Registry.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
@@ -139,6 +140,7 @@
     <ClInclude Include="Core.h" />
     <ClInclude Include="ECS.h" />
     <ClInclude Include="Entity.h" />
+    <ClInclude Include="entt.hpp" />
     <ClInclude Include="Family.h" />
     <ClInclude Include="Group.h" />
     <ClInclude Include="GroupData.h" />

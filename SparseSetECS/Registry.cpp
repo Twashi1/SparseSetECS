@@ -3,10 +3,62 @@
 #include "Group.h"
 
 namespace ECS {
+	bool Registry::m_DoesEntityBelongToCurrentGroup(const Entity& entity) {
+		// If we have a group currently used
+		if (m_CurrentGroup != nullptr) {
+			// Check if this entity already has the other types of this group
+			// Iterate the types in this group
+			for (ECS_SIZE_TYPE owned_component : m_CurrentGroup->owned_component_ids) {
+				bool found_entity = false;
+
+				// Iterate each component pool
+				for (ComponentPool* pool : m_Pools) {
+					if (pool != nullptr) {
+						// Check if pool is one of our component ids
+						if (pool->m_ID == owned_component) {
+							// This pool contains us
+							if (pool->Contains(entity)) {
+								found_entity = true;
+							}
+						}
+					}
+				}
+
+				// This entity didn't match the full signature for the group, so end checking
+				if (!found_entity) {
+					return false;
+				}
+			}
+		}
+		else {
+			return false;
+		}
+
+		return true;
+	}
+
+	void Registry::m_MoveEntityIntoGroup(const Entity& entity)
+	{
+		// So iterate each affected pool
+		for (ComponentPool* pool : m_Pools) {
+			if (pool != nullptr) {
+				// If this pool is in our group
+				if (m_CurrentGroup->ContainsID(pool->m_ID)) {
+					// Get entity we have to replace
+					Entity& replacement_entity = pool->m_PackedArray.data[m_CurrentGroup->end_index];
+					// Move this entity to the end of the group
+					pool->Swap(entity, replacement_entity);
+				}
+			}
+		}
+		// Increment size of group because we added an entity to it
+		++(m_CurrentGroup->end_index);
+	}
+
 	Registry::Registry(ECS_SIZE_TYPE default_capacity)
 		: m_DefaultCapacity(default_capacity)
 	{
-		// Fill up component pools with nullptrs for now
+		// Fill up component pools with nullptrs (leaving them uninitialised)
 		std::fill(m_Pools.begin(), m_Pools.end(), nullptr);
 	}
 
