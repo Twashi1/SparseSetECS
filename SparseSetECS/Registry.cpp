@@ -3,7 +3,7 @@
 #include "Group.h"
 
 namespace ECS {
-	bool Registry::m_DoesEntityBelongToCurrentGroup(const Entity& entity) {
+	bool Registry::m_DoesEntityBelongToFullOwningGroup(const Entity& entity) {
 		// If we have a group currently used
 		if (m_CurrentGroup != nullptr) {
 			// Check if this entity already has the other types of this group
@@ -37,7 +37,7 @@ namespace ECS {
 		return true;
 	}
 
-	void Registry::m_MoveEntityIntoGroup(const Entity& entity)
+	void Registry::m_MoveEntityIntoFullOwningGroup(const Entity& entity)
 	{
 		// So iterate each affected pool
 		for (ComponentPool* pool : m_Pools) {
@@ -53,6 +53,12 @@ namespace ECS {
 		}
 		// Increment size of group because we added an entity to it
 		++(m_CurrentGroup->end_index);
+	}
+
+	void Registry::m_EntityCheckAgainstFullOwningGroup(const Entity& entity)
+	{
+		if (m_DoesEntityBelongToFullOwningGroup(entity))
+			m_MoveEntityIntoFullOwningGroup(entity);
 	}
 
 	Registry::Registry(ECS_SIZE_TYPE default_capacity)

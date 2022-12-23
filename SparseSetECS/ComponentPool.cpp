@@ -87,4 +87,39 @@ namespace ECS {
 	ECS_SIZE_TYPE ComponentPool::GetSize() const {
 		return m_PackedArray.size;
 	}
+	
+	ComponentPool::~ComponentPool() {
+		if (m_PackedArray.data != nullptr) {
+			delete[] m_PackedArray.data;
+		}
+
+		if (m_ComponentArray.size > 0) {
+			m_Allocator->DeleteRange(&m_ComponentArray[0], m_ComponentArray.capacity);
+
+			delete[] m_ComponentArray.data;
+		}
+
+		if (m_Allocator != nullptr) {
+			delete m_Allocator;
+		}
+	}
+	
+	ComponentPool::ComponentPool(ComponentPool&& other) noexcept
+		: m_SparseArray(std::move(other.m_SparseArray)),
+		m_PackedArray(std::move(other.m_PackedArray)),
+		m_ComponentArray(std::move(other.m_ComponentArray)),
+		m_Allocator(std::move(other.m_Allocator)),
+		m_ID(std::move(other.m_ID))
+	{}
+
+	ComponentPool& ComponentPool::operator=(ComponentPool&& other) noexcept {
+		m_SparseArray = std::move(other.m_SparseArray);
+		m_PackedArray = std::move(other.m_PackedArray);
+		m_ComponentArray = std::move(other.m_ComponentArray);
+		m_ID = std::move(other.m_ID);
+	}
+	
+	ComponentPool::ComponentPool(ComponentAllocatorBase* allocator)
+		: m_Allocator(allocator), m_ID(allocator->GetComponentID())
+	{}
 }

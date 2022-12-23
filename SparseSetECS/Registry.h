@@ -34,8 +34,9 @@ namespace ECS {
 		};
 
 		// TODO: rename to "full-owned group"? or at least a consitent name between the two
-		bool m_DoesEntityBelongToCurrentGroup(const Entity& entity);
-		void m_MoveEntityIntoGroup(const Entity& entity);
+		bool m_DoesEntityBelongToFullOwningGroup(const Entity& entity);
+		void m_MoveEntityIntoFullOwningGroup(const Entity& entity);
+		void m_EntityCheckAgainstFullOwningGroup(const Entity& entity);
 
 	public:
 		Registry(ECS_SIZE_TYPE default_capacity = 1000);
@@ -113,13 +114,8 @@ namespace ECS {
 
 			// TODO: could speed up by inserting entity into correct location,
 			//		 and moving whatever is at that location to the end of the group
-			if (m_DoesEntityBelongToCurrentGroup(entity)) {
-				// First we're going to emplace
-				m_MoveEntityIntoGroup(entity);
-			}
+			m_EntityCheckAgainstFullOwningGroup(entity);
 		}
-
-		// TODO: Apply function to component
 
 		// Add a new component to an entity
 		template <typename T> void AddComponent(const Entity& entity, T&& comp) {
@@ -140,9 +136,7 @@ namespace ECS {
 			// TODO: could speed up by inserting entity into correct location,
 			//		 and moving whatever is at that location to the end of the group
 			// We should move this entity into our group
-			if (m_DoesEntityBelongToCurrentGroup(entity)) {
-				m_MoveEntityIntoGroup(entity);
-			}
+			m_EntityCheckAgainstFullOwningGroup(entity);
 		}
 
 		// Update the value of an already existing component
@@ -172,9 +166,30 @@ namespace ECS {
 				return;
 			}
 
-			ComponentPool*& pool = m_Pools[comp_id];
-
-			pool->FreeEntity(entity);
+			// The current group does contain this component, so maybe this entity belonged to the group?
+			if (m_CurrentGroup->ContainsID(comp_id)) {
+				// Entity belongs to the group right now, so we have to remove it
+				if (m_DoesEntityBelongToFullOwningGroup(entity)) {
+					for (ComponentPool* pool : m_Pools) {
+						if (pool != nullptr) {
+							// This is our component, so we need to just delete it
+							if (pool->m_ID == comp_id) {
+								pool->FreeEntity(entity);
+							}
+							// This is one of the affected groups
+							if (m_CurrentGroup->ContainsID(pool->m_ID)) {
+								// We are going to swap the last entity in that group with ourselves
+								Entity& last_entity = pool->m_PackedArray.data[m_CurrentGroup->end_index];
+								// Perform the swap
+								pool->Swap(entity, last_entity);
+								
+							}
+						}
+					}
+					// Decrement the size of the group now since we've gotten rid of this entity
+					--(m_CurrentGroup->end_index);
+				}
+			}
 		}
 
 		// Get a pointer to a component for an entity
