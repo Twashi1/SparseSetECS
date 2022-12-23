@@ -71,6 +71,10 @@ namespace ECS {
 	Registry::~Registry()
 	{
 		if (m_CurrentGroup != nullptr) delete m_CurrentGroup;
+
+		for (ComponentPool* pool : m_Pools) {
+			delete pool;
+		}
 	}
 
 	void Registry::Resize(ECS_SIZE_TYPE new_capacity) {

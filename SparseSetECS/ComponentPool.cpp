@@ -117,6 +117,8 @@ namespace ECS {
 		m_PackedArray = std::move(other.m_PackedArray);
 		m_ComponentArray = std::move(other.m_ComponentArray);
 		m_ID = std::move(other.m_ID);
+
+		return *this;
 	}
 	
 	ComponentPool::ComponentPool(ComponentAllocatorBase* allocator)

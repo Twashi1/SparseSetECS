@@ -157,6 +157,8 @@ namespace ECS {
 			other.data = nullptr;
 			other.capacity = 0;
 			other.size = 0;
+
+			return *this;
 		}
 	};
 

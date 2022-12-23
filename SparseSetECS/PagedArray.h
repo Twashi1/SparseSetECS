@@ -75,6 +75,8 @@ namespace ECS {
 			for (page_type& page : other.m_Book) {
 				page = nullptr;
 			}
+
+			return *this;
 		}
 
 		T& operator[](const ECS_SIZE_TYPE& index)				{ return m_Index(index); }
