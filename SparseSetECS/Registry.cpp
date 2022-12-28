@@ -4,37 +4,26 @@
 
 namespace ECS {
 	bool Registry::m_DoesEntityBelongToFullOwningGroup(const Entity& entity) {
-		// If we have a group currently used
+		// Our current group isn't empty
 		if (m_CurrentGroup != nullptr) {
-			// Check if this entity already has the other types of this group
-			// Iterate the types in this group
-			for (ECS_SIZE_TYPE owned_component : m_CurrentGroup->owned_component_ids) {
-				bool found_entity = false;
-
-				// Iterate each component pool
-				for (ComponentPool* pool : m_Pools) {
-					if (pool != nullptr) {
-						// Check if pool is one of our component ids
-						if (pool->m_ID == owned_component) {
-							// This pool contains us
-							if (pool->Contains(entity)) {
-								found_entity = true;
-							}
-						}
-					}
-				}
-
-				// This entity didn't match the full signature for the group, so end checking
-				if (!found_entity) {
+			// Get signature of this entity
+			const Signature& signature = m_Signatures[GetIdentifier(entity)];
+			// Iterate components within the group
+			// TODO: group should contain a signature itself, and then a simple bitwise operation could probably be done
+			//		to determine if an entity belongs/doesn't belong in a group, instead of this O(n) bs
+			for (ECS_COMP_ID_TYPE owned_component : m_CurrentGroup->owned_component_ids) {
+				// One of the components didn't exist
+				if (!signature.test(owned_component)) {
 					return false;
 				}
 			}
-		}
-		else {
-			return false;
-		}
 
-		return true;
+			// All components exist!
+			return true;
+		}
+		
+		// Group didn't exist
+		return false;
 	}
 
 	void Registry::m_MoveEntityIntoFullOwningGroup(const Entity& entity)
@@ -93,6 +82,7 @@ namespace ECS {
 			if (pool != nullptr) {
 				if (pool->Contains(entity)) {
 					pool->FreeEntity(entity);
+					m_Signatures[GetIdentifier(entity)].set(pool->m_ID, false);
 				}
 			}
 		}

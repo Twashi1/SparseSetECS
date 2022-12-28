@@ -18,7 +18,6 @@ namespace ECS {
 		}
 
 	public:
-		// TODO: another iterator...
 		struct Iterator {
 		public:
 			using iterator_category = std::forward_iterator_tag;

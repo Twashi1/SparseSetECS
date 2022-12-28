@@ -14,6 +14,7 @@ namespace ECS {
 
 	class Registry {
 	private:
+		PagedArray<Signature, ECS_SPARSE_PAGE, ECS_ENTITY_MAX> m_Signatures;
 		std::array<ComponentPool*, ECS_MAX_COMPONENTS> m_Pools;
 		ECS_SIZE_TYPE m_DefaultCapacity = 0;
 
@@ -72,6 +73,8 @@ namespace ECS {
 
 			if (m_Pools[id] != nullptr) {
 				LogWarn("Component {} already registered, ignoring call", typeid(T).name());
+
+				return;
 			}
 
 			// Otherwise add component pool to pools		
@@ -112,6 +115,9 @@ namespace ECS {
 			// Emplace this component at the end of the group
 			m_Pools[comp_id]->Emplace<T>(entity, std::forward<Args...>(args)...);
 
+			// Update signature for this entity
+			m_Signatures[GetIdentifier(entity)].set(comp_id, true);
+
 			// TODO: could speed up by inserting entity into correct location,
 			//		 and moving whatever is at that location to the end of the group
 			m_EntityCheckAgainstFullOwningGroup(entity);
@@ -133,6 +139,9 @@ namespace ECS {
 			// Push component into pool
 			pool->Push<T>(entity, std::forward<T>(comp));
 
+			// Update signature for this entity
+			m_Signatures[GetIdentifier(entity)].set(comp_id, true);
+
 			// TODO: could speed up by inserting entity into correct location,
 			//		 and moving whatever is at that location to the end of the group
 			// We should move this entity into our group
@@ -152,6 +161,7 @@ namespace ECS {
 			// Get pool
 			ComponentPool*& pool = m_Pools[comp_id];
 
+			// TODO: verify component already exists
 			pool->Replace<T>(entity, std::forward<T>(comp));
 		}
 
@@ -166,9 +176,13 @@ namespace ECS {
 				return;
 			}
 
+			// Update signature for this entity
+			m_Signatures[GetIdentifier(entity)].set(comp_id, false);
+
 			// The current group does contain this component, so maybe this entity belonged to the group?
 			if (m_CurrentGroup->ContainsID(comp_id)) {
 				// Entity belongs to the group right now, so we have to remove it
+				// since we no longer match the signature of the group
 				if (m_DoesEntityBelongToFullOwningGroup(entity)) {
 					for (ComponentPool* pool : m_Pools) {
 						if (pool != nullptr) {
@@ -195,6 +209,7 @@ namespace ECS {
 		// Get a pointer to a component for an entity
 		template <typename T> T* GetComponent(const Entity& entity) {
 			// TODO: assert pool not nullptr
+			// TODO: assert entity owns this component
 			ComponentPool*& pool = m_Pools[ComponentAllocator<T>::GetID()];
 
 			return pool->GetComponentForEntity<T>(entity);
@@ -202,7 +217,8 @@ namespace ECS {
 
 		template <typename T>
 		bool HasComponent(const Entity& entity) {
-			return m_Pools[ComponentAllocator<T>::GetID()]->Contains(entity);
+			// TODO: ensure this doesn't allocate a new array
+			return m_Signatures[GetIdentifier(entity)].test(ComponentAllocator<T>::GetID());
 		}
 
 		template <typename... Ts>

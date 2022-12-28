@@ -123,5 +123,7 @@ namespace ECS {
 	
 	ComponentPool::ComponentPool(ComponentAllocatorBase* allocator)
 		: m_Allocator(allocator), m_ID(allocator->GetComponentID())
-	{}
+	{
+		m_SparseArray.SetDefault(dead_entity);
+	}
 }

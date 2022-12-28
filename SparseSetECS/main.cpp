@@ -27,13 +27,17 @@ void my_test() {
         reg.EmplaceComponent<int>(ents[i], i);
     }
 
-    for (auto& val : reg.CreateSingleView<int>()) {}
+    auto group = reg.CreateGroup<int>();
+
+    for (auto& [val] : group) {
+        std::cout << *val << std::endl;
+    }
 }
 
 int main()
 {
     auto t1 = CURRENT;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 1; i++) {
         my_test();
     }
     auto e1 = ELAPSED(t1);

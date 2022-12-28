@@ -6,6 +6,16 @@ namespace ECS {
 	typedef ECS_ID_TYPE Entity;
 	typedef ECS_ID_TYPE Identifier_t;
 	typedef ECS_ID_TYPE Version_t;
+	typedef std::bitset<ECS_MAX_COMPONENTS> Signature;
+	
+	struct SignedEntity {
+		Entity entity;
+		Signature signature;
+
+		SignedEntity(const Entity& entity)
+			: entity(entity)
+		{}
+	};
 
 	inline Identifier_t GetVersion(const Entity& entity) {
 		return entity & ECS_VERSION_BITMASK >> ECS_VERSION_SHIFT_ALIGN;

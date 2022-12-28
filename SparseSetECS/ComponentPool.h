@@ -166,7 +166,7 @@ namespace ECS {
 
 	struct ComponentPool {
 	private:
-		PagedArray<Entity, ECS_SPARSE_PAGE, ECS_ENTITY_MAX, dead_entity> m_SparseArray;
+		PagedArray<Entity, ECS_SPARSE_PAGE, ECS_ENTITY_MAX> m_SparseArray;
 
 		PackedArray<Entity>		m_PackedArray;
 		PackedArray<std::byte>	m_ComponentArray;
