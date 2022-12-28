@@ -275,16 +275,9 @@ namespace ECS {
 				return FullOwningGroup<Ts...>(this, m_CurrentGroup);
 			}
 
-			// Create empty group data
+			// Create group data with these types
 			m_CurrentGroup = new FullOwningGroupData{};
-
-			// Scoping this because we really don't wanna use affected components again since we moved it
-			{
-				// Calculate the affected components
-				std::vector<ECS_SIZE_TYPE> affected_components = { ComponentAllocator<Ts>::GetID()... };
-				// Set that for the group
-				m_CurrentGroup->owned_component_ids = std::move(affected_components);
-			}
+			m_CurrentGroup->Init<Ts...>();
 
 			// Iterate each affected entity which contains all components
 			// Grab smallest pool for these arguments

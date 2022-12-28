@@ -8,18 +8,13 @@ namespace ECS {
 		if (m_CurrentGroup != nullptr) {
 			// Get signature of this entity
 			const Signature& signature = m_Signatures[GetIdentifier(entity)];
-			// Iterate components within the group
-			// TODO: group should contain a signature itself, and then a simple bitwise operation could probably be done
-			//		to determine if an entity belongs/doesn't belong in a group, instead of this O(n) bs
-			for (ECS_COMP_ID_TYPE owned_component : m_CurrentGroup->owned_component_ids) {
-				// One of the components didn't exist
-				if (!signature.test(owned_component)) {
-					return false;
-				}
+			// Check if signature matches
+			if (m_CurrentGroup->ContainsSignature(signature)) {
+				return true;
 			}
 
-			// All components exist!
-			return true;
+			// Signature must not have matched
+			return false;
 		}
 		
 		// Group didn't exist
