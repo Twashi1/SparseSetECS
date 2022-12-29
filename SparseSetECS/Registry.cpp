@@ -3,7 +3,7 @@
 #include "Group.h"
 
 namespace ECS {
-	void Registry::m_MoveEntityIntoOwningGroup(const Entity& entity, const Signature& signature)
+	void Registry::m_MoveEntityIntoOwningGroup(const Entity& entity, const Signature& owned_pools)
 	{
 		GroupData* relevant_group = nullptr;
 
@@ -12,7 +12,7 @@ namespace ECS {
 			if (pool != nullptr) {
 				if (pool->m_OwningGroup != nullptr) {
 					// If this pool is in our group
-					if (pool->m_OwningGroup->OwnsSignature(signature)) {
+					if (pool->m_OwningGroup->OwnsSignature(owned_pools)) {
 						relevant_group = pool->m_OwningGroup.get();
 
 						// Get entity we have to replace
@@ -25,6 +25,45 @@ namespace ECS {
 		}
 		// Increment size of group because we added an entity to it
 		++(relevant_group->end_index);
+	}
+
+	void Registry::m_MoveEntityIntoOwningGroupWithUniqueValidation(const Entity& entity, const Signature& signature)
+	{
+		GroupData* relevant_group = nullptr;
+
+		bool moved_entity = false;
+
+		// So iterate each affected pool
+		for (ComponentPool* pool : m_Pools) {
+			if (pool != nullptr) {
+				if (pool->m_OwningGroup != nullptr) {
+					// If this pool is in our group
+					if (pool->m_OwningGroup->OwnsSignature(signature) && pool->m_OwningGroup->ContainsSignature(signature)) {
+						// Ensure this pool doesn't already contain this entity
+						ECS_SIZE_TYPE current_index = pool->m_PackedArray[entity];
+						// Check current index is within bounds of that pools group
+						// This is not contained within the owning of this pool already
+						// So move it inside
+						if (current_index >= pool->m_OwningGroup->end_index || current_index < pool->m_OwningGroup->start_index) {
+							relevant_group = pool->m_OwningGroup.get();
+
+							// Get entity we have to replace
+							Entity& replacement_entity = pool->m_PackedArray.data[pool->m_OwningGroup->end_index];
+							// Move this entity to the end of the group
+							pool->Swap(entity, replacement_entity);
+
+							moved_entity = true;
+						}
+					}
+				}
+			}
+		}
+
+		if (moved_entity) {
+			LogTrace("Group {} has size {} now", (void*)relevant_group, relevant_group->end_index + 1);
+			// Increment size of group because we added an entity to it
+			++(relevant_group->end_index);
+		}
 	}
 
 	Registry::Registry(ECS_SIZE_TYPE default_capacity)

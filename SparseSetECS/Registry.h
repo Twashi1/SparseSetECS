@@ -32,6 +32,8 @@ namespace ECS {
 		};
 
 		void m_MoveEntityIntoOwningGroup(const Entity& entity, const Signature& signature);
+		// This doesn't have validation to ensure an entity isn't moved into the same group twice
+		void m_MoveEntityIntoOwningGroupWithUniqueValidation(const Entity& entity, const Signature& signature);
 
 	public:
 		Registry(ECS_SIZE_TYPE default_capacity = 1000);
@@ -117,7 +119,7 @@ namespace ECS {
 			if (pool->m_OwningGroup != nullptr) {
 				// If this entity is a part of this group
 				if (pool->m_OwningGroup->OwnsSignature(signature)) {
-					m_MoveEntityIntoOwningGroup(entity, signature);
+					m_MoveEntityIntoOwningGroupWithUniqueValidation(entity, signature);
 				}
 			}
 		}
@@ -145,7 +147,7 @@ namespace ECS {
 			if (pool->m_OwningGroup != nullptr) {
 				// If this entity is a part of this group
 				if (pool->m_OwningGroup->OwnsSignature(signature)) {
-					m_MoveEntityIntoOwningGroup(entity, signature);
+					m_MoveEntityIntoOwningGroupWithUniqueValidation(entity, signature);
 				}
 			}
 		}
@@ -320,7 +322,7 @@ namespace ECS {
 				// If this entity matches all our owned types
 				if (new_group->OwnsSignature(signature)) {
 					// Move this entity into the group
-					m_MoveEntityIntoOwningGroup(entity, signature);
+					m_MoveEntityIntoOwningGroupWithUniqueValidation(entity, signature);
 				}
 			}
 
