@@ -2,14 +2,6 @@
 
 #include <chrono>
 
-struct MyStruct {
-    int x = 3;
-};
-
-struct S2 {
-    float x = 5.0f;
-};
-
 using namespace ECS;
 
 #define CURRENT std::chrono::steady_clock::now()
@@ -29,16 +21,14 @@ void my_test() {
 
     auto group = reg.CreateGroup<Owned<int>>();
 
-    for (auto& [ent, val] : group) {
-        std::cout << *val << std::endl;
-    }
-
     ents[10] = reg.Create();
-    reg.EmplaceComponent<int>(ents[10], 101);
+    reg.EmplaceComponent<int>(ents[10], 10);
 
     for (auto& [ent, val] : group) {
         std::cout << *val << std::endl;
     }
+
+    reg.DeleteGroup(group);
 }
 
 int main()

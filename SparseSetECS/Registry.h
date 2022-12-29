@@ -328,5 +328,21 @@ namespace ECS {
 
 			return Group<WrappedTypes...>(this, new_group, smallest_pool);
 		}
+
+		template <typename... WrappedTypes> requires IsValidOwnershipTag<WrappedTypes...>
+		void DeleteGroup(Group<WrappedTypes...>& group) {
+			for (ComponentPool* pool : m_Pools) {
+				// If this pool is allocated
+				if (pool != nullptr) {
+					// If this pool is currently owned by this group
+					if (pool->m_OwningGroup == group.m_GroupData) {
+						// So set it to being unowned again
+						pool->m_OwningGroup = nullptr;
+					}
+				}
+			}
+
+			group.m_GroupData = nullptr;
+		}
 	};
 }
