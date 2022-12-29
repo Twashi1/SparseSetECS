@@ -22,21 +22,21 @@ void my_test() {
 
     std::array<Entity, 1000> ents;
 
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 10; i++) {
         ents[i] = reg.Create();
         reg.EmplaceComponent<int>(ents[i], i);
     }
 
-    auto group = reg.CreateGroup<int>();
+    auto group = reg._exp_CreateGroup<Owned<int>>();
 
-    for (auto& [val] : group) {
+    for (auto& [ent, val] : group) {
         std::cout << *val << std::endl;
     }
 
-    ents[100] = reg.Create();
-    reg.EmplaceComponent<int>(ents[100], 101);
+    ents[10] = reg.Create();
+    reg.EmplaceComponent<int>(ents[10], 101);
 
-    for (auto& [val] : group) {
+    for (auto& [ent, val] : group) {
         std::cout << *val << std::endl;
     }
 }

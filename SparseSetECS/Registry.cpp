@@ -3,46 +3,28 @@
 #include "Group.h"
 
 namespace ECS {
-	bool Registry::m_DoesEntityBelongToFullOwningGroup(const Entity& entity) {
-		// Our current group isn't empty
-		if (m_CurrentGroup != nullptr) {
-			// Get signature of this entity
-			const Signature& signature = m_Signatures[GetIdentifier(entity)];
-			// Check if signature matches
-			if (m_CurrentGroup->ContainsSignature(signature)) {
-				return true;
-			}
-
-			// Signature must not have matched
-			return false;
-		}
-		
-		// Group didn't exist
-		return false;
-	}
-
-	void Registry::m_MoveEntityIntoFullOwningGroup(const Entity& entity)
+	void Registry::m_MoveEntityIntoFullOwningGroup(const Entity& entity, const Signature& signature)
 	{
+		GroupData* relevant_group = nullptr;
+
 		// So iterate each affected pool
 		for (ComponentPool* pool : m_Pools) {
 			if (pool != nullptr) {
-				// If this pool is in our group
-				if (m_CurrentGroup->ContainsID(pool->m_ID)) {
-					// Get entity we have to replace
-					Entity& replacement_entity = pool->m_PackedArray.data[m_CurrentGroup->end_index];
-					// Move this entity to the end of the group
-					pool->Swap(entity, replacement_entity);
+				if (pool->m_OwningGroup != nullptr) {
+					// If this pool is in our group
+					if (pool->m_OwningGroup->OwnsSignature(signature)) {
+						relevant_group = pool->m_OwningGroup;
+
+						// Get entity we have to replace
+						Entity& replacement_entity = pool->m_PackedArray.data[pool->m_OwningGroup->end_index];
+						// Move this entity to the end of the group
+						pool->Swap(entity, replacement_entity);
+					}
 				}
 			}
 		}
 		// Increment size of group because we added an entity to it
-		++(m_CurrentGroup->end_index);
-	}
-
-	void Registry::m_EntityCheckAgainstFullOwningGroup(const Entity& entity)
-	{
-		if (m_DoesEntityBelongToFullOwningGroup(entity))
-			m_MoveEntityIntoFullOwningGroup(entity);
+		++(relevant_group->end_index);
 	}
 
 	Registry::Registry(ECS_SIZE_TYPE default_capacity)
@@ -54,8 +36,7 @@ namespace ECS {
 
 	Registry::~Registry()
 	{
-		if (m_CurrentGroup != nullptr) delete m_CurrentGroup;
-
+		// TODO: delete groups
 		for (ComponentPool* pool : m_Pools) {
 			delete pool;
 		}

@@ -8,9 +8,6 @@ namespace ECS {
 	class View;
 	template <typename T>
 	class SingleView;
-	template <typename... Ts>
-	class FullOwningGroup;
-	struct FullOwningGroupData;
 	template <typename... Ts> requires IsValidOwnershipTag<Ts...>
 	class Group;
 	struct GroupData;
@@ -28,19 +25,14 @@ namespace ECS {
 		// In this array, a given entity's identifier also represents its position within
 		std::vector<Entity> m_EntitiesInUse; // All entities currently in use (alive/dead)
 
-		// Data about the current full owning group
-		FullOwningGroupData* m_CurrentGroup = nullptr;
-
 		struct __PoolSizeComparator {
 			bool operator()(ComponentPool* a, ComponentPool* b) {
 				return a->m_PackedArray.size < b->m_PackedArray.size;
 			}
 		};
 
-		// TODO: rename to "full-owned group"? or at least a consitent name between the two
-		bool m_DoesEntityBelongToFullOwningGroup(const Entity& entity);
-		void m_MoveEntityIntoFullOwningGroup(const Entity& entity);
-		void m_EntityCheckAgainstFullOwningGroup(const Entity& entity);
+		// TODO: rename to m_MoveEntityIntoOwningGroup
+		void m_MoveEntityIntoFullOwningGroup(const Entity& entity, const Signature& signature);
 
 	public:
 		Registry(ECS_SIZE_TYPE default_capacity = 1000);
@@ -109,21 +101,29 @@ namespace ECS {
 
 		template <typename T, typename... Args> void EmplaceComponent(const Entity& entity, Args&&... args) {
 			ECS_SIZE_TYPE comp_id = ComponentAllocator<T>::GetID();
+			ComponentPool* pool = m_Pools[comp_id];
 
-			if (m_Pools[comp_id] == nullptr) {
+			if (pool == nullptr) {
 				LogWarn("Pool was not registered before use, registering for you");
 				RegisterComponent<T>();
 			}
 
 			// Emplace this component at the end of the group
-			m_Pools[comp_id]->Emplace<T>(entity, std::forward<Args...>(args)...);
+			pool->Emplace<T>(entity, std::forward<Args...>(args)...);
 
 			// Update signature for this entity
-			m_Signatures[GetIdentifier(entity)].set(comp_id, true);
+			Signature& signature = m_Signatures[GetIdentifier(entity)];
+			signature.set(comp_id, true);
 
 			// TODO: could speed up by inserting entity into correct location,
 			//		 and moving whatever is at that location to the end of the group
-			m_EntityCheckAgainstFullOwningGroup(entity);
+			// If pool has an owning group
+			if (pool->m_OwningGroup != nullptr) {
+				// If this entity is a part of this group
+				if (pool->m_OwningGroup->OwnsSignature(signature)) {
+					m_MoveEntityIntoFullOwningGroup(entity, signature);
+				}
+			}
 		}
 
 		// Add a new component to an entity
@@ -143,12 +143,18 @@ namespace ECS {
 			pool->Push<T>(entity, std::forward<T>(comp));
 
 			// Update signature for this entity
-			m_Signatures[GetIdentifier(entity)].set(comp_id, true);
+			Signature& signature = m_Signatures[GetIdentifier(entity)];
+			signature.set(comp_id, true);
 
 			// TODO: could speed up by inserting entity into correct location,
 			//		 and moving whatever is at that location to the end of the group
-			// We should move this entity into our group
-			m_EntityCheckAgainstFullOwningGroup(entity);
+			// If pool has an owning group
+			if (pool->m_OwningGroup != nullptr) {
+				// If this entity is a part of this group
+				if (pool->m_OwningGroup->OwnsSignature(signature)) {
+					m_MoveEntityIntoFullOwningGroup(entity, signature);
+				}
+			}
 		}
 
 		// Update the value of an already existing component
@@ -180,32 +186,34 @@ namespace ECS {
 			}
 
 			// Update signature for this entity
-			m_Signatures[GetIdentifier(entity)].set(comp_id, false);
+			Signature& signature = m_Signatures[GetIdentifier(entity)];
+			signature.set(comp_id, false);
 
-			// The current group does contain this component, so maybe this entity belonged to the group?
-			if (m_CurrentGroup->ContainsID(comp_id)) {
-				// Entity belongs to the group right now, so we have to remove it
-				// since we no longer match the signature of the group
-				if (m_DoesEntityBelongToFullOwningGroup(entity)) {
-					for (ComponentPool* pool : m_Pools) {
-						if (pool != nullptr) {
-							// This is our component, so we need to just delete it
-							if (pool->m_ID == comp_id) {
-								pool->FreeEntity(entity);
-							}
-							// This is one of the affected groups
-							if (m_CurrentGroup->ContainsID(pool->m_ID)) {
-								// We are going to swap the last entity in that group with ourselves
-								Entity& last_entity = pool->m_PackedArray.data[m_CurrentGroup->end_index];
-								// Perform the swap
-								pool->Swap(entity, last_entity);
-								
-							}
+			GroupData* relevant_group = nullptr;
+
+			// Check if any pool owns this entity
+			for (ComponentPool* pool : m_Pools) {
+				if (pool != nullptr) {
+					// This is our component pool, so we need to just delete it
+					if (pool->m_ID == comp_id) {
+						pool->FreeEntity(entity);
+					}
+					else if (pool->m_OwningGroup != nullptr) {
+						if (pool->m_OwningGroup->OwnsSignature(signature)) {
+							relevant_group = pool->m_OwningGroup;
+
+							// This pool owns us, moves ourselves out of the group
+							// We are going to swap the last entity in that group with ourselves
+							Entity& last_entity = pool->m_PackedArray[pool->m_OwningGroup->end_index];
+							// Perform the swap
+							pool->Swap(entity, last_entity);
 						}
 					}
-					// Decrement the size of the group now since we've gotten rid of this entity
-					--(m_CurrentGroup->end_index);
 				}
+			}
+
+			if (relevant_group != nullptr) {
+				--(relevant_group->end_index);
 			}
 		}
 
@@ -243,8 +251,6 @@ namespace ECS {
 		friend class View;
 		template <typename T>
 		friend class SingleView;
-		template <typename... Ts>
-		friend class FullOwningGroup;
 		template <typename... Ts> requires IsValidOwnershipTag<Ts...>
 		friend class Group;
 
@@ -272,54 +278,56 @@ namespace ECS {
 		}
 
 		// TODO: prefer this to CreateGroup
-		template <typename... WrappedTypes>
+		template <typename... WrappedTypes> requires IsValidOwnershipTag<WrappedTypes...>
 		Group<WrappedTypes...> _exp_CreateGroup() {
+			// TODO: we need to delete this group data, a shared ptr is best
+			GroupData* new_group = new GroupData{};
+			new_group->Init<WrappedTypes...>();
 
-		}
+			// Get smallest owning component pool
+			ComponentPool* smallest_pool = nullptr;
+			ECS_SIZE_TYPE smallest_size = std::numeric_limits<ECS_SIZE_TYPE>::max();
 
-		template <typename... Ts>
-		FullOwningGroup<Ts...> CreateGroup() {
-			// TODO: assert all Ts registered
-			if (m_CurrentGroup != nullptr) {
-				LogFatal("Must destroy existing group before creating new one!");
+			([&] {
+				if constexpr (IsOwnedTag<WrappedTypes>) {
+					ECS_COMP_ID_TYPE id = ComponentAllocator<typename WrappedTypes::type>::GetID();
+					ComponentPool* pool = m_Pools[id];
+					ECS_SIZE_TYPE size = 0;
 
-				return FullOwningGroup<Ts...>(this, m_CurrentGroup);
-			}
+					if (pool != nullptr) {
+						size = pool->GetSize();
 
-			// Create group data with these types
-			m_CurrentGroup = new FullOwningGroupData{};
-			m_CurrentGroup->Init<Ts...>();
+						if (size < smallest_size) {
+							smallest_pool = pool;
+							smallest_size = size;
+						}
+					}
 
-			// Iterate each affected entity which contains all components
-			// Grab smallest pool for these arguments
-			ComponentPool* smallest_pool = std::min<ComponentPool*, __PoolSizeComparator>({ m_Pools[ComponentAllocator<Ts>::GetID()]... }, __PoolSizeComparator{});
-			ECS_SIZE_TYPE smallest_size = smallest_pool->GetSize();
+					if (pool->HasExistingGroup()) {
+						LogFatal("Couldn't construct group, since one affected pool already owned by group");
+					}
+					else {
+						pool->AssignGroup(new_group);
+					}
+				}
+			} (), ...);
 
-			// Iterate entities within this smallest pool
-			for (ECS_SIZE_TYPE small_pool_index = 0; small_pool_index < smallest_size; small_pool_index++) {
-				// Get entity
-				Entity& entity = smallest_pool->m_PackedArray.data[small_pool_index];
+			// Iterate the smallest pool, and move all relevant entities into the group
+			for (ECS_SIZE_TYPE pool_index = 0; pool_index < smallest_size; pool_index++) {
+				// Get entity at this index
+				Entity& entity = smallest_pool->m_PackedArray[pool_index];
 
-				// If this entity matches all our types
-				if (AllOf<Ts...>(entity)) {
-					// We have to move this entity into our group
-					// So for each relevant pool, swap it into the correct location
-					([&] {
-						// Get the relevant pool
-						ComponentPool* pool = m_Pools[ComponentAllocator<Ts>::GetID()];
-						// Get entity at the location we need to replace
-						// Also incrementing the end index of the group here since we're "adding" to it
-						Entity& replacement_entity = pool->m_PackedArray.data[m_CurrentGroup->end_index];
-						// Swap the entities
-						pool->Swap(entity, replacement_entity);
-					} (), ...);
-					// Increment the end index because we finished sorting one entity
-					++(m_CurrentGroup->end_index);
+				// Get signature of entity
+				Signature& signature = m_Signatures[GetIdentifier(entity)];
+
+				// If this entity matches all our owned types
+				if (new_group->OwnsSignature(signature)) {
+					// Move this entity into the group
+					m_MoveEntityIntoFullOwningGroup(entity, signature);
 				}
 			}
 
-			// All our entities are "sorted" now, so just create a group of relevant size
-			return FullOwningGroup<Ts...>(this, m_CurrentGroup);
+			return Group<WrappedTypes...>(this, new_group, smallest_pool);
 		}
 	};
 }

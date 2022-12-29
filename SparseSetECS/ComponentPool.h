@@ -11,8 +11,6 @@ namespace ECS {
 	class View;
 	template <typename T>
 	class SingleView;
-	template <typename... Ts>
-	class FullOwningGroup;
 	template <typename... Ts> requires IsValidOwnershipTag<Ts...>
 	class Group;
 	struct GroupData;
@@ -344,8 +342,6 @@ namespace ECS {
 		friend class View;
 		template <typename T>
 		friend class SingleView;
-		template <typename... Ts>
-		friend class FullOwningGroup;
 		template <typename... Ts> requires IsValidOwnershipTag<Ts...>
 		friend class Group;
 	};
