@@ -31,7 +31,7 @@ namespace ECS {
 
 		GroupData() = default;
 
-		template <typename... WrappedTypes> requires IsValidOwnershipTag<WrappedTypes...>
+		template <IsValidOwnershipTag... WrappedTypes>
 		void Init() {
 			bool encountered_owned = false;
 

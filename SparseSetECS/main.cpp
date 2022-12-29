@@ -11,24 +11,24 @@ using namespace ECS;
 void my_test() {
     Registry reg(1000);
     reg.RegisterComponent<int>();
+    reg.RegisterComponent<float>();
 
     std::array<Entity, 1000> ents;
 
     for (int i = 0; i < 10; i++) {
         ents[i] = reg.Create();
         reg.EmplaceComponent<int>(ents[i], i);
+        reg.EmplaceComponent<float>(ents[i], i + 1.0f);
     }
 
-    auto group = reg.CreateGroup<Owned<int>>();
+    auto group = reg.CreateGroup<Owned<float>, Partial<int>>();
 
     ents[10] = reg.Create();
     reg.EmplaceComponent<int>(ents[10], 10);
 
-    for (auto& [ent, val] : group) {
-        std::cout << *val << std::endl;
+    for (auto& [ent, fv, iv] : group) {
+        std::cout << ent << ": " << *fv << ", " << *iv << std::endl;
     }
-
-    reg.DeleteGroup(group);
 }
 
 int main()

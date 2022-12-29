@@ -3,7 +3,7 @@
 #include "Registry.h"
 
 namespace ECS {
-	template <typename... WrappedTypes> requires IsValidOwnershipTag<WrappedTypes...>
+	template <IsValidOwnershipTag... WrappedTypes>
 	class Group {
 	private:
 		std::shared_ptr<GroupData> m_GroupData; // Registry stores and may update this data for us
@@ -28,6 +28,11 @@ namespace ECS {
 		using tuple_type = std::tuple<Entity, typename WrappedTypes::type*...>;
 
 		tuple_type m_GetIndex(ECS_SIZE_TYPE index) {
+			// Kind of a soft error when we try to grab end()
+			if (index == m_GroupData->end_index) {
+				return tuple_type{};
+			}
+
 			Entity& entity = m_IteratingPool->m_PackedArray[index];
 
 			return std::make_tuple<Entity, typename WrappedTypes::type*...>(

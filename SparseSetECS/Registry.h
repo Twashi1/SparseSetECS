@@ -8,7 +8,7 @@ namespace ECS {
 	class View;
 	template <typename T>
 	class SingleView;
-	template <typename... Ts> requires IsValidOwnershipTag<Ts...>
+	template <IsValidOwnershipTag... WrappedTypes>
 	class Group;
 	struct GroupData;
 
@@ -249,7 +249,7 @@ namespace ECS {
 		friend class View;
 		template <typename T>
 		friend class SingleView;
-		template <typename... Ts> requires IsValidOwnershipTag<Ts...>
+		template <IsValidOwnershipTag... Ts>
 		friend class Group;
 
 		template <typename... Ts>
@@ -275,7 +275,7 @@ namespace ECS {
 			return SingleView<T>(m_Pools[ComponentAllocator<T>::GetID()]);
 		}
 
-		template <typename... WrappedTypes> requires IsValidOwnershipTag<WrappedTypes...>
+		template <IsValidOwnershipTag... WrappedTypes>
 		Group<WrappedTypes...> CreateGroup() {
 			// TODO: we need to delete this group data, a shared ptr is best
 			std::shared_ptr<GroupData> new_group = std::make_shared<GroupData>();
@@ -327,7 +327,7 @@ namespace ECS {
 			return Group<WrappedTypes...>(this, new_group, smallest_pool);
 		}
 
-		template <typename... WrappedTypes> requires IsValidOwnershipTag<WrappedTypes...>
+		template <IsValidOwnershipTag... WrappedTypes>
 		void DeleteGroup(Group<WrappedTypes...>& group) {
 			for (ComponentPool* pool : m_Pools) {
 				// If this pool is allocated
