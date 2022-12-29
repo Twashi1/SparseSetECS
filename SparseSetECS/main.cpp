@@ -27,7 +27,7 @@ void my_test() {
         reg.EmplaceComponent<int>(ents[i], i);
     }
 
-    auto group = reg._exp_CreateGroup<Owned<int>>();
+    auto group = reg.CreateGroup<Owned<int>>();
 
     for (auto& [ent, val] : group) {
         std::cout << *val << std::endl;

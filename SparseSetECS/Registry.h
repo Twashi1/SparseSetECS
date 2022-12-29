@@ -277,9 +277,8 @@ namespace ECS {
 			return SingleView<T>(m_Pools[ComponentAllocator<T>::GetID()]);
 		}
 
-		// TODO: prefer this to CreateGroup
 		template <typename... WrappedTypes> requires IsValidOwnershipTag<WrappedTypes...>
-		Group<WrappedTypes...> _exp_CreateGroup() {
+		Group<WrappedTypes...> CreateGroup() {
 			// TODO: we need to delete this group data, a shared ptr is best
 			GroupData* new_group = new GroupData{};
 			new_group->Init<WrappedTypes...>();
