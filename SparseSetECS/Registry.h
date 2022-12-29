@@ -280,7 +280,7 @@ namespace ECS {
 		template <typename... WrappedTypes> requires IsValidOwnershipTag<WrappedTypes...>
 		Group<WrappedTypes...> CreateGroup() {
 			// TODO: we need to delete this group data, a shared ptr is best
-			GroupData* new_group = new GroupData{};
+			std::shared_ptr<GroupData> new_group = std::make_shared<GroupData>();
 			new_group->Init<WrappedTypes...>();
 
 			// Get smallest owning component pool
@@ -306,7 +306,7 @@ namespace ECS {
 						LogFatal("Couldn't construct group, since one affected pool already owned by group");
 					}
 					else {
-						pool->AssignGroup(new_group);
+						pool->m_OwningGroup = new_group;
 					}
 				}
 			} (), ...);

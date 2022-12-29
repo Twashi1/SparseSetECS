@@ -13,7 +13,7 @@ namespace ECS {
 				if (pool->m_OwningGroup != nullptr) {
 					// If this pool is in our group
 					if (pool->m_OwningGroup->OwnsSignature(signature)) {
-						relevant_group = pool->m_OwningGroup;
+						relevant_group = pool->m_OwningGroup.get();
 
 						// Get entity we have to replace
 						Entity& replacement_entity = pool->m_PackedArray.data[pool->m_OwningGroup->end_index];

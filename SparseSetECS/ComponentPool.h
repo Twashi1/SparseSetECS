@@ -175,7 +175,7 @@ namespace ECS {
 
 		ComponentAllocatorBase*	m_Allocator = nullptr;
 
-		GroupData* m_OwningGroup = nullptr;
+		std::shared_ptr<GroupData> m_OwningGroup = nullptr;
 
 		void m_AllocatePackedSpace(const ECS_SIZE_TYPE& packed_index);
 
@@ -322,7 +322,6 @@ namespace ECS {
 		bool Contains(const Entity& entity);
 
 		inline bool HasExistingGroup() { return m_OwningGroup != nullptr; }
-		inline void AssignGroup(GroupData* group) { m_OwningGroup = group; }
 
 		ECS_SIZE_TYPE GetSize() const;
 

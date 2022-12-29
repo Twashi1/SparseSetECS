@@ -6,7 +6,7 @@ namespace ECS {
 	template <typename... WrappedTypes> requires IsValidOwnershipTag<WrappedTypes...>
 	class Group {
 	private:
-		GroupData* m_GroupData; // Registry stores and may update this data for us
+		std::shared_ptr<GroupData > m_GroupData; // Registry stores and may update this data for us
 		Registry* m_Registry;
 		ComponentPool* m_IteratingPool = nullptr; // The pool we iterate, will be any owned component pool
 
@@ -79,7 +79,7 @@ namespace ECS {
 			friend bool operator!=(const Iterator& a, const Iterator& b) { return a.m_Index != b.m_Index; }
 		};
 
-		Group(Registry* registry, GroupData* data, ComponentPool* iterating_pool)
+		Group(Registry* registry, std::shared_ptr<GroupData> data, ComponentPool* iterating_pool)
 			: m_GroupData(data), m_Registry(registry), m_IteratingPool(iterating_pool)
 		{}
 
