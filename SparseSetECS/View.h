@@ -31,7 +31,7 @@ namespace ECS {
 		View(Registry* registry)
 			: m_Registry(registry)
 		{
-			// Assert pool exists first
+			// Get smallest pool
 			m_SmallestPool = std::min<ComponentPool*, Registry::__PoolSizeComparator>({ m_Registry->m_Pools[ComponentAllocator<Ts>::GetID()]... }, Registry::__PoolSizeComparator{});
 			m_SmallestPoolSize = m_SmallestPool->GetSize();
 		}

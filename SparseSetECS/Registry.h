@@ -11,6 +11,9 @@ namespace ECS {
 	template <typename... Ts>
 	class FullOwningGroup;
 	struct FullOwningGroupData;
+	template <typename... Ts> requires IsValidOwnershipTag<Ts...>
+	class Group;
+	struct GroupData;
 
 	class Registry {
 	private:
@@ -242,6 +245,8 @@ namespace ECS {
 		friend class SingleView;
 		template <typename... Ts>
 		friend class FullOwningGroup;
+		template <typename... Ts> requires IsValidOwnershipTag<Ts...>
+		friend class Group;
 
 		template <typename... Ts>
 		View<Ts...> CreateView() {
@@ -264,6 +269,12 @@ namespace ECS {
 			}
 
 			return SingleView<T>(m_Pools[ComponentAllocator<T>::GetID()]);
+		}
+
+		// TODO: prefer this to CreateGroup
+		template <typename... WrappedTypes>
+		Group<WrappedTypes...> _exp_CreateGroup() {
+
 		}
 
 		template <typename... Ts>

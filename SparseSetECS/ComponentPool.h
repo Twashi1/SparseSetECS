@@ -4,6 +4,7 @@
 #include "PagedArray.h"
 #include "Entity.h"
 #include "Family.h"
+#include "GroupData.h"
 
 namespace ECS {
 	template <typename... Ts>
@@ -12,6 +13,9 @@ namespace ECS {
 	class SingleView;
 	template <typename... Ts>
 	class FullOwningGroup;
+	template <typename... Ts> requires IsValidOwnershipTag<Ts...>
+	class Group;
+	struct GroupData;
 
 	// Base for the component allocator, defines some methods for moving data of type T
 	class ComponentAllocatorBase {
@@ -173,6 +177,8 @@ namespace ECS {
 
 		ComponentAllocatorBase*	m_Allocator = nullptr;
 
+		GroupData* m_OwningGroup = nullptr;
+
 		void m_AllocatePackedSpace(const ECS_SIZE_TYPE& packed_index);
 
 		template <typename T>
@@ -317,6 +323,9 @@ namespace ECS {
 
 		bool Contains(const Entity& entity);
 
+		inline bool HasExistingGroup() { return m_OwningGroup != nullptr; }
+		inline void AssignGroup(GroupData* group) { m_OwningGroup = group; }
+
 		ECS_SIZE_TYPE GetSize() const;
 
 		~ComponentPool();
@@ -337,5 +346,7 @@ namespace ECS {
 		friend class SingleView;
 		template <typename... Ts>
 		friend class FullOwningGroup;
+		template <typename... Ts> requires IsValidOwnershipTag<Ts...>
+		friend class Group;
 	};
 }

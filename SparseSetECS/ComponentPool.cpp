@@ -2,6 +2,7 @@
 #include "Registry.h"
 #include "View.h"
 #include "Group.h"
+#include "GroupData.h"
 
 namespace ECS {
 	void ComponentPool::m_AllocatePackedSpace(const ECS_SIZE_TYPE& packed_index) {
@@ -17,8 +18,8 @@ namespace ECS {
 	}
 	
 	void ComponentPool::Swap(const Entity& a, const Entity& b) {
-		ECS_SIZE_TYPE& index_a = m_SparseArray[a];
-		ECS_SIZE_TYPE& index_b = m_SparseArray[b];
+		ECS_SIZE_TYPE& index_a = m_SparseArray[GetIdentifier(a)];
+		ECS_SIZE_TYPE& index_b = m_SparseArray[GetIdentifier(b)];
 
 		std::byte* location_a = &m_ComponentArray[index_a * m_Allocator->SizeInBytes()];
 		std::byte* location_b = &m_ComponentArray[index_b * m_Allocator->SizeInBytes()];
@@ -34,7 +35,7 @@ namespace ECS {
 	ECS_SIZE_TYPE ComponentPool::GetID() const { return m_ID; }
 
 	void ComponentPool::FreeEntity(const Entity& entity) {
-		ECS_SIZE_TYPE& index = m_SparseArray[entity];
+		ECS_SIZE_TYPE& index = m_SparseArray[GetIdentifier(entity)];
 
 		Swap(index, m_PackedArray.size - 1);
 		index = dead_entity;
@@ -124,6 +125,7 @@ namespace ECS {
 	ComponentPool::ComponentPool(ComponentAllocatorBase* allocator)
 		: m_Allocator(allocator), m_ID(allocator->GetComponentID())
 	{
+		// TODO: pretty bad, should be in constructor
 		m_SparseArray.SetDefault(dead_entity);
 	}
 }
