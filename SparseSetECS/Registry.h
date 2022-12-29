@@ -14,13 +14,13 @@ namespace ECS {
 
 	class Registry {
 	private:
+		// Use entity identifier as index into this to get its signature
 		PagedArray<Signature, ECS_SPARSE_PAGE, ECS_ENTITY_MAX> m_Signatures;
 		std::array<ComponentPool*, ECS_MAX_COMPONENTS> m_Pools;
 		ECS_SIZE_TYPE m_DefaultCapacity = 0;
 
 		Entity m_NextEntity = ECS_ENTITY_MAX; // Next entity to be recycled
-		// TODO: rename, not current but next
-		Entity m_CurrentLargestEntity = 0; // The largest value entity we have right now
+		Entity m_NextLargestEntity = 0; // The largest value entity we have right now
 		ECS_SIZE_TYPE m_AvailableEntities = 0; // Amount of available entities for recycling
 		// In this array, a given entity's identifier also represents its position within
 		std::vector<Entity> m_EntitiesInUse; // All entities currently in use (alive/dead)
@@ -31,8 +31,7 @@ namespace ECS {
 			}
 		};
 
-		// TODO: rename to m_MoveEntityIntoOwningGroup
-		void m_MoveEntityIntoFullOwningGroup(const Entity& entity, const Signature& signature);
+		void m_MoveEntityIntoOwningGroup(const Entity& entity, const Signature& signature);
 
 	public:
 		Registry(ECS_SIZE_TYPE default_capacity = 1000);
@@ -103,10 +102,7 @@ namespace ECS {
 			ECS_SIZE_TYPE comp_id = ComponentAllocator<T>::GetID();
 			ComponentPool* pool = m_Pools[comp_id];
 
-			if (pool == nullptr) {
-				LogWarn("Pool was not registered before use, registering for you");
-				RegisterComponent<T>();
-			}
+			if (pool == nullptr) { RegisterComponent<T>(); }
 
 			// Emplace this component at the end of the group
 			pool->Emplace<T>(entity, std::forward<Args...>(args)...);
@@ -121,7 +117,7 @@ namespace ECS {
 			if (pool->m_OwningGroup != nullptr) {
 				// If this entity is a part of this group
 				if (pool->m_OwningGroup->OwnsSignature(signature)) {
-					m_MoveEntityIntoFullOwningGroup(entity, signature);
+					m_MoveEntityIntoOwningGroup(entity, signature);
 				}
 			}
 		}
@@ -131,10 +127,7 @@ namespace ECS {
 			ECS_SIZE_TYPE comp_id = ComponentAllocator<T>::GetID();
 
 			// Pool not registered
-			if (m_Pools[comp_id] == nullptr) {
-				LogWarn("Pool was not registered before use, registering for you");
-				RegisterComponent<T>();
-			}
+			if (m_Pools[comp_id] == nullptr) { RegisterComponent<T>(); }
 
 			// Get pool
 			ComponentPool*& pool = m_Pools[comp_id];
@@ -152,7 +145,7 @@ namespace ECS {
 			if (pool->m_OwningGroup != nullptr) {
 				// If this entity is a part of this group
 				if (pool->m_OwningGroup->OwnsSignature(signature)) {
-					m_MoveEntityIntoFullOwningGroup(entity, signature);
+					m_MoveEntityIntoOwningGroup(entity, signature);
 				}
 			}
 		}
@@ -162,16 +155,21 @@ namespace ECS {
 			ECS_SIZE_TYPE comp_id = ComponentAllocator<T>::GetID();
 
 			// Pool not registered
-			if (m_Pools[comp_id] == nullptr) {
-				LogWarn("Pool was not registered before use, registering for you");
-				RegisterComponent<T>();
-			}
+			if (m_Pools[comp_id] == nullptr) { RegisterComponent<T>(); }
 
 			// Get pool
 			ComponentPool*& pool = m_Pools[comp_id];
 
-			// TODO: verify component already exists
-			pool->Replace<T>(entity, std::forward<T>(comp));
+			// Get signature of entity
+			Signature& signature = m_Signatures[GetIdentifier(entity)];
+
+			// Component exists
+			if (signature.test(comp_id)) {
+				pool->Replace<T>(entity, std::forward<T>(comp));
+			}
+			else {
+				LogError("Attempted to replace component {} for entity {}, but entity didn't have component", typeid(T).name(), entity);
+			}
 		}
 
 		// Remove component from an entity
@@ -322,7 +320,7 @@ namespace ECS {
 				// If this entity matches all our owned types
 				if (new_group->OwnsSignature(signature)) {
 					// Move this entity into the group
-					m_MoveEntityIntoFullOwningGroup(entity, signature);
+					m_MoveEntityIntoOwningGroup(entity, signature);
 				}
 			}
 

@@ -9,6 +9,7 @@
 // TODO: version isn't being really used right now
 // TODO: general cleanup
 
+// (THESE ARE DONE NEED TESTING)
 // TODO: some group operations should be taking the smallest component pool but are just taking the first one
 // TODO: group deconstruction
 // TODO: freeing groups

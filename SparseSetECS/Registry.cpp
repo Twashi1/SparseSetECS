@@ -3,7 +3,7 @@
 #include "Group.h"
 
 namespace ECS {
-	void Registry::m_MoveEntityIntoFullOwningGroup(const Entity& entity, const Signature& signature)
+	void Registry::m_MoveEntityIntoOwningGroup(const Entity& entity, const Signature& signature)
 	{
 		GroupData* relevant_group = nullptr;
 
@@ -89,16 +89,16 @@ namespace ECS {
 		}
 		// Just return a new entity
 		else {
-			if (m_CurrentLargestEntity > ECS_ENTITY_MAX) {
+			if (m_NextLargestEntity > ECS_ENTITY_MAX) {
 				LogError("Ran out of entities, attempt to free entities so they can be recycled");
 
 				return ECS_ENTITY_MAX;
 			}
 
 			// Push into entities in use
-			m_EntitiesInUse.push_back(m_CurrentLargestEntity);
+			m_EntitiesInUse.push_back(m_NextLargestEntity);
 			// Return entity
-			return m_CurrentLargestEntity++;
+			return m_NextLargestEntity++;
 		}
 	}
 }
