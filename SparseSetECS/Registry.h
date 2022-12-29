@@ -4,8 +4,6 @@
 #include "GroupData.h"
 
 namespace ECS {
-	template <typename... Ts>
-	class View;
 	template <typename T>
 	class SingleView;
 	template <IsValidOwnershipTag... WrappedTypes>
@@ -245,26 +243,10 @@ namespace ECS {
 			return std::make_tuple<Ts*...>(GetComponent<Ts>(entity)...);
 		}
 
-		template <typename... Ts>
-		friend class View;
 		template <typename T>
 		friend class SingleView;
 		template <IsValidOwnershipTag... Ts>
 		friend class Group;
-
-		template <typename... Ts>
-		View<Ts...> CreateView() {
-			if (sizeof...(Ts) == 1) {
-				LogInfo("Prefer CreateSingleView when iterating 1 component");
-			}
-
-			// Check all pools are allocated
-			if (((m_Pools[ComponentAllocator<Ts>::GetID()] == nullptr) || ...)) {
-				LogFatal("Can't create view: one of the components is not registered!");
-			}
-
-			return View<Ts...>(this);
-		}
 
 		template <typename T>
 		SingleView<T> CreateSingleView() {

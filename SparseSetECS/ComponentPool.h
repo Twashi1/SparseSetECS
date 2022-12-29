@@ -8,8 +8,6 @@
 #include "WrappedArray.h"
 
 namespace ECS {
-	template <typename... Ts>
-	class View;
 	template <typename T>
 	class SingleView;
 	template <IsValidOwnershipTag... WrappedTypes>
@@ -297,8 +295,6 @@ namespace ECS {
 
 		friend class Registry;
 
-		template <typename... Ts>
-		friend class View;
 		template <typename T>
 		friend class SingleView;
 		template <IsValidOwnershipTag... Ts>
