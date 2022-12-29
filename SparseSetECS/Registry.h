@@ -17,7 +17,7 @@ namespace ECS {
 		// Use entity identifier as index into this to get its signature
 		PagedArray<Signature, ECS_SPARSE_PAGE, ECS_ENTITY_MAX> m_Signatures;
 		std::array<ComponentPool*, ECS_MAX_COMPONENTS> m_Pools;
-		ECS_SIZE_TYPE m_DefaultCapacity = 0;
+		ECS_SIZE_TYPE m_DefaultCapacity = 0; // Default capacity for new component pools
 
 		Entity m_NextEntity = ECS_ENTITY_MAX; // Next entity to be recycled
 		Entity m_NextLargestEntity = 0; // The largest value entity we have right now
@@ -25,6 +25,7 @@ namespace ECS {
 		// In this array, a given entity's identifier also represents its position within
 		std::vector<Entity> m_EntitiesInUse; // All entities currently in use (alive/dead)
 
+		// TODO: should just be using some lambda fold expression
 		struct __PoolSizeComparator {
 			bool operator()(ComponentPool* a, ComponentPool* b) {
 				return a->m_PackedArray.size < b->m_PackedArray.size;
@@ -44,17 +45,18 @@ namespace ECS {
 		
 		// Resize specific component pool 
 		template <typename T> void ResizePool(ECS_SIZE_TYPE new_capacity) {
-			ECS_SIZE_TYPE pool_id = ComponentAllocator<T>::GetID();
+			ECS_SIZE_TYPE comp_id = ComponentAllocator<T>::GetID();
+			ComponentPool* pool = m_Pools[comp_id];
 
 			// Ensure pool is registered
-			if (m_Pools[pool_id] == nullptr) {
+			if (pool == nullptr) {
 				LogError("Component pool not registered; register pool before attempting resize");
 
 				return;
 			}
 
 			// Call resize
-			m_Pools[pool_id]->Resize(new_capacity);
+			pool->Resize(new_capacity);
 		}
 
 		// Free up an entity id and all associated components
@@ -115,16 +117,7 @@ namespace ECS {
 
 			// TODO: could speed up by inserting entity into correct location,
 			//		 and moving whatever is at that location to the end of the group
-			// If pool has an owning group
-			/*
-			if (pool->m_OwningGroup != nullptr) {
-				// If this entity is a part of this group
-				if (pool->m_OwningGroup->ContainsSignature(signature)) {
-					m_MoveEntityIntoOwningGroupWithUniqueValidation(entity, signature);
-				}
-			}
-			*/
-
+			
 			// We have to update all groups actually
 			m_MoveEntityIntoOwningGroupWithUniqueValidation(entity, signature);
 		}
@@ -290,9 +283,14 @@ namespace ECS {
 			// Get smallest owning component pool
 			ComponentPool* smallest_pool = nullptr;
 			ECS_SIZE_TYPE smallest_size = std::numeric_limits<ECS_SIZE_TYPE>::max();
+			// If we have at least one owned group
+			bool owned_group = false;
 
+			// For fully-owned or partially-owned groups
 			([&] {
 				if constexpr (IsOwnedTag<WrappedTypes>) {
+					owned_group = true;
+
 					ECS_COMP_ID_TYPE id = ComponentAllocator<typename WrappedTypes::type>::GetID();
 					ComponentPool* pool = m_Pools[id];
 					ECS_SIZE_TYPE size = 0;
@@ -314,6 +312,26 @@ namespace ECS {
 					}
 				}
 			} (), ...);
+
+			// For completely non-owning groups
+			if (!owned_group) {
+				([&] {
+					ECS_COMP_ID_TYPE id = ComponentAllocator<typename WrappedTypes::type>::GetID();
+					ComponentPool* pool = m_Pools[id];
+					ECS_SIZE_TYPE size = 0;
+
+					if (pool != nullptr) {
+						size = pool->GetSize();
+
+						if (size < smallest_size) {
+							smallest_pool = pool;
+							smallest_size = size;
+						}
+					}
+				} (), ...);
+
+				new_group->end_index = smallest_size;
+			}
 
 			// Iterate the smallest pool, and move all relevant entities into the group
 			for (ECS_SIZE_TYPE pool_index = 0; pool_index < smallest_size; pool_index++) {

@@ -9,6 +9,7 @@ namespace ECS {
 		std::shared_ptr<GroupData> m_GroupData; // Registry stores and may update this data for us
 		Registry* m_Registry;
 		ComponentPool* m_IteratingPool = nullptr; // The pool we iterate, will be any owned component pool
+		bool m_OwnsField = false;
 
 		template <typename T>
 		typename T::type* m_Grab(ECS_SIZE_TYPE index, Entity entity) {
@@ -27,16 +28,40 @@ namespace ECS {
 
 		using tuple_type = std::tuple<Entity, typename WrappedTypes::type*...>;
 
-		tuple_type m_GetIndex(ECS_SIZE_TYPE index) {
-			// Kind of a soft error when we try to grab end()
-			if (index == m_GroupData->end_index) {
-				return tuple_type{};
-			}
+		tuple_type m_GetIndex(ECS_SIZE_TYPE& index) {
+			bool valid_entity = false;
+			Entity* entity = nullptr;
 
-			Entity& entity = m_IteratingPool->m_PackedArray[index];
+			do {
+				// Kind of a soft error when we try to grab end()
+				if (index >= m_GroupData->end_index || index >= m_IteratingPool->GetSize()) {
+					return tuple_type{};
+				}
+
+				entity = &(m_IteratingPool->m_PackedArray[index]);
+
+				// We have to check ourselves that the entity actually has all the components
+				if (!m_OwnsField) {
+					// Get entity signature
+					Signature& signature = m_Registry->m_Signatures[GetIdentifier(*entity)];
+					// If this entity didn't contain all the signatures
+					if (!m_GroupData->ContainsSignature(signature)) {
+						// Increment index again
+						++index;
+					}
+					// It did contain all the signatures
+					else {
+						valid_entity = true;
+					}
+				}
+				// We are already assured this entity contains all the components
+				else {
+					valid_entity = true;
+				}
+			} while (!valid_entity);
 
 			return std::make_tuple<Entity, typename WrappedTypes::type*...>(
-				std::forward<Entity>(entity), m_Grab<WrappedTypes>(index, entity)...
+				std::forward<Entity>(*entity), m_Grab<WrappedTypes>(index, *entity)...
 			);
 		}
 
@@ -58,14 +83,14 @@ namespace ECS {
 			Iterator(Group* group, const ECS_SIZE_TYPE& index)
 				: m_Index(index), m_Group(group)
 			{
-				m_Current = m_Group->m_GetIndex(index);
+				m_Current = m_Group->m_GetIndex(m_Index);
 			}
 
 			reference operator*() { return m_Current; }
 			pointer operator->() { return &m_Current; }
 
 			Iterator& operator++() {
-				m_Index++;
+				++m_Index;
 
 				m_Current = m_Group->m_GetIndex(m_Index);
 
@@ -73,8 +98,6 @@ namespace ECS {
 			}
 			Iterator operator++(int) {
 				Iterator tmp = *this;
-
-				m_Current = m_Group->m_GetIndex(m_Index);
 
 				++(*this);
 				return tmp;
@@ -94,8 +117,27 @@ namespace ECS {
 			}
 		}
 
-		Iterator begin()	{ return Iterator(this, m_GroupData->start_index); }
-		Iterator end()		{ return Iterator(this, m_GroupData->end_index);   }
+		Iterator begin() { return Iterator(this, m_GroupData->start_index); }
+		Iterator end()
+		{
+			if (m_OwnsField) {
+				return Iterator(this, m_GroupData->end_index);
+			}
+			else {
+				ECS_SIZE_TYPE max_index = 0;
+
+				// Reverse iterating pool
+				for (ECS_SIZE_TYPE index = m_IteratingPool->GetSize() - 1; index >= 0; index--) {
+					// Get entity at index
+					Entity& entity = m_IteratingPool->m_PackedArray[index];
+					Signature& signature = m_Registry->m_Signatures[GetIdentifier(entity)];
+
+					if (m_GroupData->ContainsSignature(signature)) { max_index = index; break; }
+				}
+
+				return Iterator(this, max_index + 1);
+			}
+		}
 
 		inline ECS_SIZE_TYPE size() { return m_GroupData->end_index - m_GroupData->start_index; }
 		inline bool empty()			{ return size() == 0; }

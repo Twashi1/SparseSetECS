@@ -33,8 +33,6 @@ namespace ECS {
 
 		template <IsValidOwnershipTag... WrappedTypes>
 		void Init() {
-			bool encountered_owned = false;
-
 			// Setup our signatures
 			([&] {
 				ECS_COMP_ID_TYPE id = ComponentAllocator<typename WrappedTypes::type>::GetID();
@@ -43,17 +41,12 @@ namespace ECS {
 				// Owned types
 				if constexpr (IsOwnedTag<WrappedTypes>) {
 					owned_components.set(id, true);
-					encountered_owned = true;
 				}
 				// Partially owned types
 				else {
 					partial_components.set(id, true);
 				}
 			} (), ...);
-
-			if (!encountered_owned) {
-				LogFatal("Formed bad group! Must have at least one owned component within group");
-			}
 		}
 
 		inline bool OwnsID(ECS_COMP_ID_TYPE id) {

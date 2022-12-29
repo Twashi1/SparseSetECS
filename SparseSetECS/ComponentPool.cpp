@@ -8,11 +8,11 @@ namespace ECS {
 	void ComponentPool::m_AllocatePackedSpace(const ECS_SIZE_TYPE& packed_index) {
 		// Not enough space!
 		if (m_PackedArray.capacity <= packed_index) {
-			if (m_PackedArray.capacity * m_PackedArray.growth_factor <= packed_index) {
+			if (m_PackedArray.capacity * ECS_POOL_RESIZE_FACTOR <= packed_index) {
 				Resize(packed_index + 1);
 			}
 			else {
-				Resize(m_PackedArray.capacity * m_PackedArray.growth_factor);
+				Resize(m_PackedArray.capacity * ECS_POOL_RESIZE_FACTOR);
 			}
 		}
 	}

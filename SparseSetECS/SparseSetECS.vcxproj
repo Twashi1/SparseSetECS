@@ -147,6 +147,7 @@
     <ClInclude Include="PagedArray.h" />
     <ClInclude Include="Registry.h" />
     <ClInclude Include="View.h" />
+    <ClInclude Include="WrappedArray.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

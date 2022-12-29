@@ -5,6 +5,7 @@
 #include "Entity.h"
 #include "Family.h"
 #include "GroupData.h"
+#include "WrappedArray.h"
 
 namespace ECS {
 	template <typename... Ts>
@@ -27,17 +28,17 @@ namespace ECS {
 		virtual void Swap(std::byte* a, std::byte* b) const = 0;
 
 		virtual std::size_t SizeInBytes() const = 0;
-		virtual ECS_SIZE_TYPE GetComponentID() const = 0;
+		virtual ECS_COMP_ID_TYPE GetComponentID() const = 0;
 	};
 
 	// For moving, deleting, and allocating data of some type T (somewhat) safely
 	template <typename T>
 	class ComponentAllocator final : public ComponentAllocatorBase {
 	private:
-		static const ECS_SIZE_TYPE m_ID;
+		static const ECS_COMP_ID_TYPE m_ID;
 
 	public:
-		static constexpr ECS_SIZE_TYPE GetID() { return m_ID; }
+		static constexpr ECS_COMP_ID_TYPE GetID() { return m_ID; }
 
 		void Assign(std::byte* dest, std::byte* src) const override final {
 			// Attempt a simple memcpy if possible
@@ -106,7 +107,7 @@ namespace ECS {
 			return sizeof(T);
 		}
 
-		ECS_SIZE_TYPE GetComponentID() const override final {
+		ECS_COMP_ID_TYPE GetComponentID() const override final {
 			return ComponentAllocator<T>::GetID();
 		}
 
@@ -121,48 +122,7 @@ namespace ECS {
 	};
 
 	template <typename T>
-	const ECS_SIZE_TYPE ComponentAllocator<T>::m_ID = Family::Type<T>();
-
-	template <typename T, float _growth_factor = 2.0f>
-	struct PackedArray {
-		static constexpr float growth_factor = _growth_factor;
-
-		T* data;
-		ECS_SIZE_TYPE capacity;
-		ECS_SIZE_TYPE size;
-
-		T& operator[](const ECS_SIZE_TYPE& index) {
-			return data[index];
-		}
-
-		PackedArray()
-			: capacity(0), size(0), data(nullptr)
-		{}
-
-		PackedArray(PackedArray&& other) noexcept
-			: data(std::move(other.data)), capacity(std::move(other.capacity)), size(std::move(other.size))
-		{
-			other.data = nullptr;
-			other.capacity = 0;
-			other.size = 0;
-		}
-
-		PackedArray(const PackedArray& other) = delete;
-		PackedArray& operator=(const PackedArray& other) = delete;
-
-		PackedArray& operator=(PackedArray&& other) noexcept
-		{
-			data = std::move(other.data);
-			capacity = std::move(other.capacity);
-			size = std::move(other.size);
-
-			other.data = nullptr;
-			other.capacity = 0;
-			other.size = 0;
-
-			return *this;
-		}
-	};
+	const ECS_COMP_ID_TYPE ComponentAllocator<T>::m_ID = Family::Type<T>();
 
 	class Registry;
 
@@ -170,8 +130,8 @@ namespace ECS {
 	private:
 		PagedArray<Entity, ECS_SPARSE_PAGE, ECS_ENTITY_MAX> m_SparseArray;
 
-		PackedArray<Entity>		m_PackedArray;
-		PackedArray<std::byte>	m_ComponentArray;
+		WrappedArray<Entity>	m_PackedArray;
+		WrappedArray<std::byte>	m_ComponentArray;
 
 		ComponentAllocatorBase*	m_Allocator = nullptr;
 
@@ -184,7 +144,7 @@ namespace ECS {
 			return reinterpret_cast<T*>(&m_ComponentArray[index * m_Allocator->SizeInBytes()]);
 		}
 
-		ECS_SIZE_TYPE m_ID = 0;
+		ECS_COMP_ID_TYPE m_ID = 0;
 
 	public:
 		template <typename T>

@@ -22,24 +22,10 @@ void my_test() {
     }
 
     auto group = reg.CreateGroup<Owned<float>, Partial<int>>();
-    auto g2 = reg.CreateGroup<Owned<int>, Partial<float>>();
+    auto g2 = reg.CreateGroup<Partial<int>, Partial<float>>();
 
     ents[10] = reg.Create();
     reg.EmplaceComponent<int>(ents[10], 10);
-
-    for (auto& [ent, iv, fv] : group) {
-        std::cout << ent << ": " << *fv << ", " << *iv << std::endl;
-    }
-
-    for (auto& [ent, fv, iv] : g2) {
-        std::cout << ent << ": " << *fv << ", " << *iv << std::endl;
-    }
-
-    reg.EmplaceComponent<float>(ents[10], 10.1f);
-
-    for (auto& [ent, iv, fv] : group) {
-        std::cout << ent << ": " << *fv << ", " << *iv << std::endl;
-    }
 
     for (auto& [ent, fv, iv] : g2) {
         std::cout << ent << ": " << *fv << ", " << *iv << std::endl;

@@ -95,10 +95,14 @@ namespace ECS {
 	
 	void Registry::FreeEntity(const Entity& entity) {
 		// Free components assosciated with that entity
-		for (ComponentPool*& pool : m_Pools) {
+		for (ComponentPool* pool : m_Pools) {
+			// If pool is allocated
 			if (pool != nullptr) {
+				// If pool contains us
 				if (pool->Contains(entity)) {
+					// Free ourselves from the pool
 					pool->FreeEntity(entity);
+					// Update our signature
 					m_Signatures[GetIdentifier(entity)].set(pool->m_ID, false);
 				}
 			}
