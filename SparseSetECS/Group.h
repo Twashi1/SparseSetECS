@@ -11,17 +11,17 @@ namespace ECS {
 		ComponentPool* m_IteratingPool = nullptr; // The pool we iterate, will be any owned component pool
 
 		template <typename T>
-		T* m_Grab(ECS_SIZE_TYPE index, Entity entity) {
-			ECS_COMP_ID_TYPE id = ComponentAllocator<T>::GetID();
+		typename T::type* m_Grab(ECS_SIZE_TYPE index, Entity entity) {
+			ECS_COMP_ID_TYPE id = ComponentAllocator<typename T::type>::GetID();
 			ComponentPool* pool = m_Registry->m_Pools[id];
 
 			// If its an owned component
 			if constexpr (IsOwnedTag<T>) {
-				return pool->m_Index<T>(index);
+				return pool->m_Index<typename T::type>(index);
 			}
 			// If partially owned component
 			else {
-				return pool->GetComponentForEntity<T>(entity);
+				return pool->GetComponentForEntity<typename T::type>(entity);
 			}
 		}
 
@@ -31,7 +31,7 @@ namespace ECS {
 			Entity& entity = m_IteratingPool->m_PackedArray[index];
 
 			return std::make_tuple<Entity, typename WrappedTypes::type*...>(
-				std::forward<Entity>(entity), m_Grab<typename WrappedTypes::type>(index, entity)...
+				std::forward<Entity>(entity), m_Grab<WrappedTypes>(index, entity)...
 			);
 		}
 
