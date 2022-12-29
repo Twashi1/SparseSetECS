@@ -18,7 +18,7 @@ void my_test() {
     for (int i = 0; i < 10; i++) {
         ents[i] = reg.Create();
         reg.EmplaceComponent<int>(ents[i], i);
-        reg.EmplaceComponent<float>(ents[i], i + 1.0f);
+        reg.EmplaceComponent<float>(ents[i], i + .1f);
     }
 
     auto group = reg.CreateGroup<Owned<float>, Partial<int>>();
@@ -27,7 +27,16 @@ void my_test() {
     ents[10] = reg.Create();
     reg.EmplaceComponent<int>(ents[10], 10);
 
-    int i = 0;
+    for (auto& [ent, iv, fv] : group) {
+        std::cout << ent << ": " << *fv << ", " << *iv << std::endl;
+    }
+
+    for (auto& [ent, fv, iv] : g2) {
+        std::cout << ent << ": " << *fv << ", " << *iv << std::endl;
+    }
+
+    reg.EmplaceComponent<float>(ents[10], 10.1f);
+
     for (auto& [ent, iv, fv] : group) {
         std::cout << ent << ": " << *fv << ", " << *iv << std::endl;
     }

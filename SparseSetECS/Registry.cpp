@@ -29,7 +29,7 @@ namespace ECS {
 
 	void Registry::m_MoveEntityIntoOwningGroupWithUniqueValidation(const Entity& entity, const Signature& signature)
 	{
-		GroupData* relevant_group = nullptr;
+		std::vector<std::shared_ptr<GroupData>> relevant_groups;
 
 		bool moved_entity = false;
 
@@ -38,17 +38,19 @@ namespace ECS {
 			if (pool != nullptr) {
 				if (pool->m_OwningGroup != nullptr) {
 					// If this pool is in our group
-					if (pool->m_OwningGroup->OwnsSignature(signature) && pool->m_OwningGroup->ContainsSignature(signature)) {
+					if (pool->m_OwningGroup->ContainsSignature(signature)) {
 						// Ensure this pool doesn't already contain this entity
-						ECS_SIZE_TYPE current_index = pool->m_PackedArray[entity];
+						ECS_SIZE_TYPE current_index = pool->m_SparseArray[GetIdentifier(entity)];
 						// Check current index is within bounds of that pools group
 						// This is not contained within the owning of this pool already
 						// So move it inside
 						if (current_index >= pool->m_OwningGroup->end_index || current_index < pool->m_OwningGroup->start_index) {
-							relevant_group = pool->m_OwningGroup.get();
+							if (std::find(relevant_groups.begin(), relevant_groups.end(), pool->m_OwningGroup) == relevant_groups.end()) {
+								relevant_groups.push_back(pool->m_OwningGroup);
+							}
 
 							// Get entity we have to replace
-							Entity& replacement_entity = pool->m_PackedArray.data[pool->m_OwningGroup->end_index];
+							Entity& replacement_entity = pool->m_PackedArray[pool->m_OwningGroup->end_index];
 							// Move this entity to the end of the group
 							pool->Swap(entity, replacement_entity);
 
@@ -60,9 +62,10 @@ namespace ECS {
 		}
 
 		if (moved_entity) {
-			LogTrace("Group {} has size {} now", (void*)relevant_group, relevant_group->end_index + 1);
-			// Increment size of group because we added an entity to it
-			++(relevant_group->end_index);
+			for (std::shared_ptr<GroupData>& group : relevant_groups) {
+				// Increment size of group because we added an entity to it
+				++(group->end_index);
+			}
 		}
 	}
 
@@ -75,7 +78,6 @@ namespace ECS {
 
 	Registry::~Registry()
 	{
-		// TODO: delete groups
 		for (ComponentPool* pool : m_Pools) {
 			delete pool;
 		}

@@ -116,12 +116,17 @@ namespace ECS {
 			// TODO: could speed up by inserting entity into correct location,
 			//		 and moving whatever is at that location to the end of the group
 			// If pool has an owning group
+			/*
 			if (pool->m_OwningGroup != nullptr) {
 				// If this entity is a part of this group
-				if (pool->m_OwningGroup->OwnsSignature(signature)) {
+				if (pool->m_OwningGroup->ContainsSignature(signature)) {
 					m_MoveEntityIntoOwningGroupWithUniqueValidation(entity, signature);
 				}
 			}
+			*/
+
+			// We have to update all groups actually
+			m_MoveEntityIntoOwningGroupWithUniqueValidation(entity, signature);
 		}
 
 		// Add a new component to an entity
@@ -279,7 +284,6 @@ namespace ECS {
 
 		template <IsValidOwnershipTag... WrappedTypes>
 		Group<WrappedTypes...> CreateGroup() {
-			// TODO: we need to delete this group data, a shared ptr is best
 			std::shared_ptr<GroupData> new_group = std::make_shared<GroupData>();
 			new_group->Init<WrappedTypes...>();
 

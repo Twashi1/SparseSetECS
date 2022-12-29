@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <tuple>
 #include <type_traits>
 #include <vector>
