@@ -107,7 +107,7 @@ namespace ECS {
 			if (pool == nullptr) { RegisterComponent<T>(); }
 
 			// Emplace this component at the end of the group
-			pool->Emplace<T>(entity, std::forward<Args...>(args)...);
+			pool->Emplace<T>(entity, std::forward<Args>(args)...);
 
 			// Update signature for this entity
 			Signature& signature = m_Signatures[GetIdentifier(entity)];
@@ -258,7 +258,7 @@ namespace ECS {
 		}
 
 		template <IsValidOwnershipTag... WrappedTypes>
-		Group<WrappedTypes...> CreateGroup() {
+		[[nodiscard]] Group<WrappedTypes...> CreateGroup() {
 			std::shared_ptr<GroupData> new_group = std::make_shared<GroupData>();
 			new_group->Init<WrappedTypes...>();
 
@@ -330,7 +330,7 @@ namespace ECS {
 				}
 			}
 
-			return Group<WrappedTypes...>(this, new_group, smallest_pool);
+			return Group<WrappedTypes...>(this, new_group, smallest_pool, owned_group);
 		}
 
 		template <IsValidOwnershipTag... WrappedTypes>

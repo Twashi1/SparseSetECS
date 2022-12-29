@@ -107,8 +107,8 @@ namespace ECS {
 			friend bool operator!=(const Iterator& a, const Iterator& b) { return a.m_Index != b.m_Index; }
 		};
 
-		Group(Registry* registry, std::shared_ptr<GroupData> data, ComponentPool* iterating_pool)
-			: m_GroupData(data), m_Registry(registry), m_IteratingPool(iterating_pool)
+		Group(Registry* registry, std::shared_ptr<GroupData> data, ComponentPool* iterating_pool, bool owns_field)
+			: m_GroupData(data), m_Registry(registry), m_IteratingPool(iterating_pool), m_OwnsField(owns_field)
 		{}
 
 		~Group() {
