@@ -333,6 +333,13 @@ namespace ECS {
 			return Group<WrappedTypes...>(this, new_group, smallest_pool, owned_group);
 		}
 
+		template <typename... Ts>
+		Group<Partial<Ts>...> CreateGroup() {
+			LogWarn("Didn't wrap all types for group, wrapping with Partial for all");
+
+			return CreateGroup<Partial<Ts>...>();
+		}
+
 		template <IsValidOwnershipTag... WrappedTypes>
 		void DeleteGroup(Group<WrappedTypes...>& group) {
 			for (ComponentPool* pool : m_Pools) {
@@ -347,6 +354,11 @@ namespace ECS {
 			}
 
 			group.m_GroupData = nullptr;
+		}
+
+		template <typename... Ts>
+		void DeleteGroup(Group<Ts...>& group) {
+			static_assert(std::integral_constant<Ts, false>, "Can't delete an invalid group");
 		}
 	};
 }

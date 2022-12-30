@@ -2,8 +2,6 @@
 
 #include "View.h"
 #include "Group.h"
-#include "Registry.h"
-#include "GroupData.h"
 
 // TODO: needs extensive testing that GetIdentifier is being used appropriately
 // TODO: multiple assumptions that the identifier is the first 20 bits

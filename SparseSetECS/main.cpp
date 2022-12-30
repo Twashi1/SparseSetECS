@@ -38,7 +38,7 @@ int main()
     reg.RegisterComponent<Name>();
     reg.RegisterComponent<Physics>();
 
-    auto physics_group = reg.CreateGroup<typename Partial<Position>, typename Owned<Physics>>();
+    auto physics_group = reg.CreateGroup<Partial<Position>, Owned<Physics>>();
 
     std::vector<Entity> phys_comps;
     for (int i = 0; i < 100; i++) {
