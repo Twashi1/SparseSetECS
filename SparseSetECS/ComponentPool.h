@@ -99,6 +99,8 @@ namespace ECS {
 			Assign(tmp, a);
 			Assign(a,   b);
 			Assign(b, tmp);
+			
+			delete[] tmp;
 		}
 
 		std::size_t SizeInBytes() const override final {
